@@ -1,4 +1,5 @@
 {Matcher, AttributeJoinedData} = require '../attributes'
+QueryRange = require './query-range'
 Utils = require './utils'
 _ = require 'underscore'
 
@@ -44,7 +45,7 @@ class ModelQuery
     @_database || = require '../stores/database-store'
     @_matchers = []
     @_orders = []
-    @_range = {}
+    @_range = QueryRange.infinite()
     @_returnOne = false
     @_returnIds = false
     @_includeJoinedData = []
@@ -55,7 +56,7 @@ class ModelQuery
     q = new ModelQuery(@_klass, @_database).where(@_matchers).order(@_orders)
     q._orders = [].concat(@_orders)
     q._includeJoinedData = [].concat(@_includeJoinedData)
-    q._range = {start: @_range.start, end: @_range.end}
+    q._range = @_range.clone()
     q._returnOne = @_returnOne
     q._returnIds = @_returnIds
     q._count = @_count
@@ -143,6 +144,7 @@ class ModelQuery
   limit: (limit) ->
     @_assertNotFinalized()
     throw new Error("Cannot use limit > 2 with one()") if @_returnOne and limit > 1
+    @_range = @_range.clone()
     @_range.limit = limit
     @
 
@@ -154,6 +156,7 @@ class ModelQuery
   #
   offset: (offset) ->
     @_assertNotFinalized()
+    @_range = @_range.clone()
     @_range.offset = offset
     @
 

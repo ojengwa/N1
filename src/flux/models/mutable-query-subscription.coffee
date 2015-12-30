@@ -1,33 +1,34 @@
 QuerySubscription = require './query-subscription'
-Range = require './range'
 
 class MutableQuerySubscription extends QuerySubscription
   constructor: ->
-    @_range = new Range(start: 0, end: 0)
     super
-    if @_query.range().limit or @_query.range().offset
-      throw new Error("MutableQuerySubscription::Query must not have an existing limit or offset.")
 
-  range: =>
-    @_range
+  replaceQuery: (nextQuery) ->
+    return if @_query.sql() is nextQuery.sql()
 
-  setRange: (range) =>
-    return if @_range.equals(range)
-    console.log("Changing range to #{range.start} - #{range.end}")
+    rangeIsOnlyChange = @_query.clone().offset(0).limit(0).sql() is nextQuery.clone().offset(0).limit(0).sql()
+    rangeIntersects = @_query.range().intersects(nextQuery.range())
 
-    if not range.intersects(@_range)
-      console.log("Emptying ID and model cache")
-      @_modelCache.removeAll()
-      @_ids = null
+    nextQuery.finalize()
+    @_query = nextQuery
 
-    @_range = range
-
-    if @_ids
-      @_ids.clipToRange(range)
+    if @_set and rangeIsOnlyChange and rangeIntersects
+      @_set.clipToRange(@_query.range())
       @_fetchMissingRanges(entireModels: true).then =>
         @_invokeCallbacks()
+
     else
-      @_fetchRange(range, entireModels: true).then =>
+      @_set = null
+      @_fetchRange(@_query.range(), entireModels: true).then =>
         @_invokeCallbacks()
+
+  addCallback: (callback) =>
+    super
+
+    if @_callbacks.length > 1
+      throw new Error("""MutableQuerySubscription:addCallback - A second callback
+        was added to a mutable subscription. Mutable subscriptions cannot be shared
+        because they are not guarunteed to remain the same.""")
 
 module.exports = MutableQuerySubscription

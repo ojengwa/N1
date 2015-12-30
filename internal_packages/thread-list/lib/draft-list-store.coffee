@@ -32,13 +32,15 @@ class DraftListStore extends NylasStore
 
     return unless account
 
-    @_view = new DatabaseView Message,
-      matchers: [
+    query = DatabaseStore.findAll(Message)
+      .include(Message.attributes.body)
+      .order(Message.attributes.date.descending())
+      .where([
         Message.attributes.accountId.equal(account.id)
         Message.attributes.draft.equal(true)
-      ],
-      includes: [Message.attributes.body]
-      orders: [Message.attributes.date.descending()]
+      ])
+
+    @_view = new DatabaseView(query)
 
     @unlisten = @_view.listen => @trigger({})
 

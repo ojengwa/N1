@@ -63,8 +63,8 @@ Rx.Observable.fromStore = (store) =>
     observer.onNext(store)
     return Rx.Disposable.create(unsubscribe)
 
-Rx.Observable.fromQuery = (query, options) =>
+Rx.Observable.fromQuery = (query) =>
   return Rx.Observable.create (observer) =>
-    unsubscribe = QuerySubscriptionPool.add query, options, (result) =>
+    unsubscribe = QuerySubscriptionPool.add query, (result) =>
       observer.onNext(result)
     return Rx.Disposable.create(unsubscribe)

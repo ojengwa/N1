@@ -1,13 +1,12 @@
 _ = require 'underscore'
 PromiseQueue = require 'promise-queue'
 DatabaseChangeRecord = require '../stores/database-change-record'
-LRUCache = require '../../lru-cache'
 
 QueryRange = require './query-range'
 QueryRangedResultSet = require './query-ranged-result-set'
 
 class QuerySubscription
-  constructor: (@_query, @_options) ->
+  constructor: (@_query, @_options = {}) ->
     ModelQuery = require './query'
 
     if not @_query or not (@_query instanceof ModelQuery)
@@ -18,32 +17,23 @@ class QuerySubscription
 
     @_query.finalize()
 
-    @_ids = null
+    @_set = null
     @_version = 0
     @_callbacks = []
 
     @_fetchQueue ?= new PromiseQueue(1, Infinity)
-    @_fetchRange(@range(), entireModels: true).then =>
+    @_fetchRange(@_query.range(), entireModels: true).then =>
       @_invokeCallbacks()
 
   query: =>
     @_query
-
-  range: =>
-    {limit, offset} = @_query.range()
-    start = offset ? 0
-    end = start + (limit ? 10000)
-    new Range({start, end})
 
   addCallback: (callback) =>
     unless callback instanceof Function
       throw new Error("QuerySubscription:addCallback - expects a function, received #{callback}")
     @_callbacks.push(callback)
 
-    # If we already have data, send it to our new observer. Users always expect
-    # callbacks to be fired asynchronously, so wait a tick.
-    if @_ids
-      _.defer => @_invokeCallback(callback)
+    _.defer => @_invokeCallback(callback)
 
   hasCallback: (callback) =>
     @_callbacks.indexOf(callback) isnt -1
@@ -60,43 +50,42 @@ class QuerySubscription
     return unless record.objectClass is @_query.objectClass()
     return unless record.objects.length > 0
 
-    if not @_ids
-      @_fetchRange(@range())
+    if not @_set
+      @_fetchRange(@_query.range(), entireModels: true)
       return
 
     mustRefetchAllIds = false
 
     if record.type is 'unpersist'
       for item in record.objects
-        @_modelCache.remove(item.id)
-        idx = @_ids.indexOfValue(item.id)
-        if idx isnt -1
-          @_ids.removeValueAtIndex(idx)
+        @_set.modelCache.remove(item.id)
+        offset = @_set.offsetOfId(item.id)
+        if offset isnt -1
+          @_set.removeAtOffset(offset)
 
     else if record.type is 'persist'
       for item in record.objects
-        idx = @_ids.indexOfValue(item.id)
-        itemIsInSet = idx isnt -1
+        offset = @_set.offsetOfId(item.id)
+        itemIsInSet = offset isnt -1
         itemShouldBeInSet = item.matches(@_query.matchers())
 
         if itemIsInSet and not itemShouldBeInSet
-          @_modelCache.remove(item.id)
-          @_ids.removeValueAtIndex(idx)
+          @_set.removeAtOffset(offset)
 
         else if itemShouldBeInSet and not itemIsInSet
-          @_modelCache.put(item.id, item)
+          @_set.modelCache.put(item.id, item)
           mustRefetchAllIds = true
 
         else if itemIsInSet
-          oldItem = @_modelCache.get(item.id)
-          @_modelCache.put(item.id, item)
+          oldItem = @_set.itemWithId(item.id)
+          @_set.modelCache.put(item.id, item)
 
           if @_itemSortOrderHasChanged(oldItem, item)
             mustRefetchAllIds = true
             @_version += 1
 
     if mustRefetchAllIds
-      refetchPromise = @_fetchRange(@range())
+      refetchPromise = @_fetchRange(@_query.range())
     else
       refetchPromise = @_fetchMissingRanges({entireModels: true})
 
@@ -116,19 +105,20 @@ class QuerySubscription
     return false
 
   _result: =>
-    set = @_ids.values().map (id) => @_modelCache.get(id)
-    [@_query.formatResultObjects(set), @_ids.range()]
+    if @_options.asResultSet
+      return @_set
+    else
+      return @_query.formatResultObjects(@_set.models())
 
   _invokeCallbacks: =>
+    return unless @_set
     result = @_result()
-    return unless result
     @_callbacks.forEach (callback) =>
-      callback.apply(@, result)
+      callback(result)
 
   _invokeCallback: (callback) =>
-    result = @_result()
-    return unless result
-    callback.apply(@, result)
+    return unless @_set
+    callback(@_result())
 
   _fetchRange: (range, {entireModels} = {}) =>
     DatabaseStore = require '../stores/database-store'
@@ -136,39 +126,44 @@ class QuerySubscription
     version = @_version += 1
     cancelled = => version isnt @_version
 
+    rangeQuery = undefined
+
+    unless range.isInfinite()
+      rangeQuery ?= @_query.clone()
+      rangeQuery.offset(range.offset).limit(range.limit)
+
+    unless entireModels
+      rangeQuery ?= @_query.clone()
+      rangeQuery.idsOnly()
+
+    rangeQuery ?= @_query
+
     @_fetchQueue.add =>
       return if cancelled()
-      query = @_query.clone().offset(range.start).limit(range.end - range.start)
-      query.idsOnly() unless entireModels
 
-      DatabaseStore.run(query, {format: false}).then (results) =>
+      DatabaseStore.run(rangeQuery, {format: false}).then (results) =>
         return if cancelled()
 
+        @_set ?= new QueryRangedResultSet()
         if entireModels
-          @_modelCache.put(m.id, m) for m in results
-          rangeIds = _.pluck(results, 'id')
+          @_set.addModelsInRange(range, results)
         else
-          rangeIds = results
-
-        if not @_ids
-          @_ids = new RangedArray(range, rangeIds)
-        else
-          @_ids.addValuesInRange(range, rangeIds)
+          @_set.addIdsInRange(range, results)
 
   _fetchMissingRanges: (options) =>
-    missingRanges = @range().rangesBySubtracting(@_ids.range())
+    missingRanges = @_query.range().rangesBySubtracting(@_set.range())
     Promise.each missingRanges, (range) =>
       @_fetchRange(range, options)
 
   _fetchMissingModels: ->
-    ids = @_ids.values().filter (id) => @_modelCache.get(id) is null
+    ids = @_set.idsOfMissingModels()
     return Promise.resolve() if ids.length is 0
 
     console.log("Fetching Models #{JSON.stringify(ids)}")
 
     DatabaseStore = require '../stores/database-store'
     DatabaseStore.findAll(@_query._klass, {id: ids}).then (models) =>
-      @_modelCache.put(m.id, m) for m in models
+      @_set.modelCache.put(m.id, m) for m in models
 
 
 module.exports = QuerySubscription

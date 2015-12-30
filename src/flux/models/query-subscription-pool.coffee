@@ -12,13 +12,13 @@ class QuerySubscriptionPool
     @_subscriptions = {}
     @_setup()
 
-  add: (query, options, callback) =>
+  add: (query, callback) =>
     # callback._registrationPoint = @_formatRegistrationPoint((new Error).stack)
 
     key = @_keyForQuery(query)
     subscription = @_subscriptions[key]
     if not subscription
-      subscription = new QuerySubscription(query, options)
+      subscription = new QuerySubscription(query)
       @_subscriptions[key] = subscription
 
     subscription.addCallback(callback)
@@ -27,19 +27,18 @@ class QuerySubscriptionPool
       # We could be in the middle of an update that will remove and then re-add
       # the exact same subscription. Keep around the cached set for one tick
       # to see if that happens.
-      _.defer => @checkIfSubscriptionNeeded(subscription)
+      _.defer => @checkIfSubscriptionNeeded(key)
 
-  addPrivateSubscription: (subscription, callback) =>
-    key = "private-"+@_keyForQuery(subscription.query())
+  addPrivateSubscription: (key, subscription, callback) =>
     @_subscriptions[key] = subscription
     subscription.addCallback(callback)
     return =>
       subscription.removeCallback(callback)
-      _.defer => @checkIfSubscriptionNeeded(subscription)
+      _.defer => @checkIfSubscriptionNeeded(key)
 
-  checkIfSubscriptionNeeded: (subscription) =>
-    return unless subscription.callbackCount() is 0
-    key = @_keyForQuery(subscription.query())
+  checkIfSubscriptionNeeded: (key) =>
+    subscription = @_subscriptions[key]
+    return unless subscription and subscription.callbackCount() is 0
     delete @_subscriptions[key]
 
   printSubscriptions: =>

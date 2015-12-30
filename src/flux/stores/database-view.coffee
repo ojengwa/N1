@@ -4,28 +4,29 @@ DatabaseStore = require './database-store'
 Message = require '../models/message'
 QuerySubscriptionPool = require '../models/query-subscription-pool'
 MutableQuerySubscription = require '../models/mutable-query-subscription'
-Range = require '../models/range'
 ModelView = require './model-view'
 
 verbose = false
 
 class DatabaseView extends ModelView
 
-  constructor: (@query, config = {}, @_metadataProvider) ->
+  constructor: (query, config = {}, @_metadataProvider) ->
     super
     @_count = -1
-    @_items = null
-    @_itemsRange = null
-    @_threadQuerySubscription = new MutableQuerySubscription(@query)
+    @_itemsWithMetadata = null
+    @_resultSet = null
+    @_threadQuerySubscription = new MutableQuerySubscription(query.limit(0), {asResultSet: true})
 
     @_observer = @_build().subscribe (data) =>
-      [threads, range, messagesForThreads...] = data
-      for thread, idx in threads
-        threads[idx] = new thread.constructor(thread)
-        threads[idx].metadata = messagesForThreads[idx]
+      [resultSet, messagesForThreads...] = data
 
-      @_itemsRange = range
-      @_items = threads
+      items = resultSet.models()
+      for thread, idx in items
+        items[idx] = new thread.constructor(thread)
+        items[idx].metadata = messagesForThreads[idx]
+
+      @_resultSet = resultSet
+      @_itemsWithMetadata = items
       @_count = 1000 # HACK
       console.log("TRIGGERING")
       @trigger()
@@ -34,14 +35,16 @@ class DatabaseView extends ModelView
 
   _build: ->
     Rx.Observable.create (observer) =>
-      unsubscribe = QuerySubscriptionPool.addPrivateSubscription @_threadQuerySubscription, (threads, range) ->
-        observer.onNext({threads, range})
+      unsubscribe = QuerySubscriptionPool.addPrivateSubscription 'thread-list', @_threadQuerySubscription, (resultSet) ->
+        observer.onNext(resultSet)
       return Rx.Disposable.create(unsubscribe)
-    .flatMapLatest ({threads, range}) =>
-      messagesObservables = [Rx.Observable.from([threads]), Rx.Observable.from([range])]
-      messagesObservables = messagesObservables.concat threads.map (thread) ->
-        Rx.Observable.fromQuery(DatabaseStore.findAll(Message, {threadId: thread.id}))
+
+    .flatMapLatest (resultSet) =>
+      messagesObservables = resultSet.ids().map (id) ->
+        Rx.Observable.fromQuery(DatabaseStore.findAll(Message, {threadId: id}))
+      messagesObservables.unshift(Rx.Observable.from([resultSet]))
       Rx.Observable.combineLatest(messagesObservables)
+
     .debounce(1)
 
   log: ->
@@ -56,33 +59,38 @@ class DatabaseView extends ModelView
     @_count
 
   loaded: ->
-    @_items isnt null
+    @_resultSet isnt null
 
-  get: (idx) =>
-    unless _.isNumber(idx)
+  get: (offset) =>
+    unless _.isNumber(offset)
       throw new Error("ModelView.get() takes a numeric index. Maybe you meant getById()?")
-    @_items?[idx - @_itemsRange.start]
+    return null unless @_resultSet
+    @_itemsWithMetadata[offset - @_resultSet.range().offset]
 
   getById: (id) ->
     return null unless id
-    return @_threadQuerySubscription._modelCache.get(id)
+    return @_resultSet.modelCache.get(id)
 
   indexOfId: (id) ->
-    return -1 unless @_items and id
-    return @_itemsRange.start + _.findIndex @_items, (item) -> item.id is id or item.clientId is id
+    return -1 unless @_resultSet and id
+    return @_resultSet.offsetOfId(id)
 
   itemsCurrentlyInViewMatching: (matchFn) ->
-    return [] unless @_items
-    @_items.filter(matchFn)
+    return [] unless @_resultSet
+    @_itemsWithMetadata.filter(matchFn)
 
   setRetainedRange: ({start, end}) ->
     pageSize = 10
     pagePadding = 50
 
-    rangeLength = end - start
-    rangeStart = Math.max(0, Math.round((start - pagePadding) / pageSize) * pageSize)
-    rangeEnd = rangeStart + rangeLength + pagePadding * 2
-    @_threadQuerySubscription.setRange(new Range({start: rangeStart, end: rangeEnd}))
+    nextQuery = @_threadQuerySubscription.query().clone()
+    nextQuery.offset(Math.max(0, Math.round((start - pagePadding) / pageSize) * pageSize))
+    nextQuery.limit((end - start) + pagePadding * 2)
+
+    @_threadQuerySubscription.replaceQuery(nextQuery)
+
+  matchers: ->
+    @_threadQuerySubscription.query().matchers()
 
   invalidate: ({changed, shallow} = {}) ->
 

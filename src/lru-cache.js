@@ -247,4 +247,12 @@ LRUCache.prototype.toString = function() {
   return s;
 };
 
+LRUCache.prototype.toHash = function() {
+  hash = {};
+  this.forEach(function(x, key, val) {
+    hash[key] = val;
+  });
+  return hash;
+};
+
 module.exports = LRUCache;
