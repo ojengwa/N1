@@ -1,13 +1,14 @@
 _ = require 'underscore'
 PromiseQueue = require 'promise-queue'
+DatabaseStore = require '../stores/database-store'
 DatabaseChangeRecord = require '../stores/database-change-record'
-
+LRUCache = require '../../lru-cache'
 QueryRange = require './query-range'
-QueryRangedResultSet = require './query-ranged-result-set'
+MutableQueryResultSet = require './mutable-query-result-set'
+ModelQuery = require './query'
 
 class QuerySubscription
   constructor: (@_query, @_options = {}) ->
-    ModelQuery = require './query'
 
     if not @_query or not (@_query instanceof ModelQuery)
       throw new Error("QuerySubscription: Must be constructed with a ModelQuery. Got #{@_query}")
@@ -18,12 +19,13 @@ class QuerySubscription
     @_query.finalize()
 
     @_set = null
+    @_lastResult = null
+
     @_version = 0
     @_callbacks = []
+    @_modelCache = new LRUCache(100)
 
-    @_fetchQueue ?= new PromiseQueue(1, Infinity)
-    @_fetchRange(@_query.range(), entireModels: true).then =>
-      @_invokeCallbacks()
+    @_fetchRange(@_query.range(), entireModels: true).then(@_fillMissingAndInvoke)
 
   query: =>
     @_query
@@ -33,7 +35,10 @@ class QuerySubscription
       throw new Error("QuerySubscription:addCallback - expects a function, received #{callback}")
     @_callbacks.push(callback)
 
-    _.defer => @_invokeCallback(callback)
+    if @_lastResult
+      _.defer =>
+        return unless @_lastResult
+        callback(@_lastResult)
 
   hasCallback: (callback) =>
     @_callbacks.indexOf(callback) isnt -1
@@ -54,14 +59,16 @@ class QuerySubscription
       @_fetchRange(@_query.range(), entireModels: true)
       return
 
+    mustCancelRunningQueries = false
     mustRefetchAllIds = false
 
     if record.type is 'unpersist'
       for item in record.objects
-        @_set.modelCache.remove(item.id)
+        @_modelCache.remove(item.id)
         offset = @_set.offsetOfId(item.id)
         if offset isnt -1
           @_set.removeAtOffset(offset)
+          mustCancelRunningQueries = true
 
     else if record.type is 'persist'
       for item in record.objects
@@ -70,28 +77,30 @@ class QuerySubscription
         itemShouldBeInSet = item.matches(@_query.matchers())
 
         if itemIsInSet and not itemShouldBeInSet
+          @_modelCache.remove(item.id)
           @_set.removeAtOffset(offset)
+          mustCancelRunningQueries = true
 
         else if itemShouldBeInSet and not itemIsInSet
-          @_set.modelCache.put(item.id, item)
+          @_modelCache.put(item.id, item)
           mustRefetchAllIds = true
+          mustCancelRunningQueries = true
 
         else if itemIsInSet
-          oldItem = @_set.itemWithId(item.id)
-          @_set.modelCache.put(item.id, item)
+          oldItem = @_modelCache.get(item.id)
+          @_modelCache.put(item.id, item)
+          mustCancelRunningQueries = true
+          mustRefetchAllIds = true if @_itemSortOrderHasChanged(oldItem, item)
 
-          if @_itemSortOrderHasChanged(oldItem, item)
-            mustRefetchAllIds = true
-            @_version += 1
+    if mustCancelRunningQueries
+        @_version += 1
 
     if mustRefetchAllIds
       refetchPromise = @_fetchRange(@_query.range())
     else
-      refetchPromise = @_fetchMissingRanges({entireModels: true})
+      refetchPromise = @_fetchMissingRanges()
 
-    refetchPromise.then =>
-      @_fetchMissingModels().then =>
-        @_invokeCallbacks()
+    refetchPromise.then(@_fillMissingAndInvoke)
 
   _itemSortOrderHasChanged: (old, updated) ->
     for descriptor in @_query.orderSortDescriptors()
@@ -104,28 +113,8 @@ class QuerySubscription
 
     return false
 
-  _result: =>
-    if @_options.asResultSet
-      return @_set
-    else
-      return @_query.formatResultObjects(@_set.models())
-
-  _invokeCallbacks: =>
-    return unless @_set
-    result = @_result()
-    @_callbacks.forEach (callback) =>
-      callback(result)
-
-  _invokeCallback: (callback) =>
-    return unless @_set
-    callback(@_result())
-
   _fetchRange: (range, {entireModels} = {}) =>
-    DatabaseStore = require '../stores/database-store'
-
-    version = @_version += 1
-    cancelled = => version isnt @_version
-
+    version = @_version
     rangeQuery = undefined
 
     unless range.isInfinite()
@@ -138,32 +127,53 @@ class QuerySubscription
 
     rangeQuery ?= @_query
 
-    @_fetchQueue.add =>
-      return if cancelled()
+    # console.log("Fetching #{range.start} - #{range.end}")
+    DatabaseStore.run(rangeQuery, {format: false}).then (results) =>
+      return console.log("Cancelled") unless version is @_version
 
-      DatabaseStore.run(rangeQuery, {format: false}).then (results) =>
-        return if cancelled()
+      ids = if entireModels then _.pluck(results, 'id') else results
 
-        @_set ?= new QueryRangedResultSet()
-        if entireModels
-          @_set.addModelsInRange(range, results)
-        else
-          @_set.addIdsInRange(range, results)
+      @_set = null unless @_set?.range().intersects(range)
+      @_set ?= new MutableQueryResultSet()
+      @_set.addIdsInRange(ids, range)
+      @_set.clipToRange(@_query.range())
 
-  _fetchMissingRanges: (options) =>
-    missingRanges = @_query.range().rangesBySubtracting(@_set.range())
-    Promise.each missingRanges, (range) =>
-      @_fetchRange(range, options)
+      @_modelCache.limit = Math.max(@_modelCache.limit, @_set.count() + 20)
+      if entireModels
+        @_modelCache.put(model.id, model) for model in results
 
-  _fetchMissingModels: ->
-    ids = @_set.idsOfMissingModels()
-    return Promise.resolve() if ids.length is 0
+  _fetchMissingRanges: =>
+    desiredRange = @_query.range()
+    currentRange = @_set?.range()
 
-    console.log("Fetching Models #{JSON.stringify(ids)}")
+    if currentRange and not currentRange.isInfinite() and not desiredRange.isInfinite()
+      ranges = desiredRange.rangesBySubtracting(currentRange)
+    else
+      ranges = [desiredRange]
 
-    DatabaseStore = require '../stores/database-store'
-    DatabaseStore.findAll(@_query._klass, {id: ids}).then (models) =>
-      @_set.modelCache.put(m.id, m) for m in models
+    Promise.each ranges, (range) =>
+      @_fetchRange(range, {entireModels: true})
 
+  _fillMissingAndInvoke: =>
+    set = @_set.clone()
+    ids = set.ids().filter (id) => not @_modelCache.get(id)
+
+    if ids.length is 0
+      query = Promise.resolve([])
+    else
+      DatabaseStore = require '../stores/database-store'
+      query = DatabaseStore.findAll(@_query._klass, {id: ids})
+
+    query.then (models) =>
+      @_modelCache.put(m.id, m) for m in models
+
+      set.attachModelsFrom(@_modelCache.toHash())
+      if @_options.asResultSet
+        @_lastResult = set.immutableClone()
+      else
+        @_lastResult = @_query.formatResultObjects(set.models())
+
+      @_callbacks.forEach (callback) =>
+        callback(@_lastResult)
 
 module.exports = QuerySubscription

@@ -249,7 +249,7 @@ LRUCache.prototype.toString = function() {
 
 LRUCache.prototype.toHash = function() {
   hash = {};
-  this.forEach(function(x, key, val) {
+  this.forEach(function(key, val, self) {
     hash[key] = val;
   });
   return hash;

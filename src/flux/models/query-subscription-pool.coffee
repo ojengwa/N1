@@ -10,10 +10,12 @@ merge equivalent subscriptions, etc.
 class QuerySubscriptionPool
   constructor: ->
     @_subscriptions = {}
+    @_cleanupChecks = []
     @_setup()
 
   add: (query, callback) =>
-    # callback._registrationPoint = @_formatRegistrationPoint((new Error).stack)
+    if NylasEnv.inDevMode()
+      callback._registrationPoint = @_formatRegistrationPoint((new Error).stack)
 
     key = @_keyForQuery(query)
     subscription = @_subscriptions[key]
@@ -24,24 +26,18 @@ class QuerySubscriptionPool
     subscription.addCallback(callback)
     return =>
       subscription.removeCallback(callback)
-      # We could be in the middle of an update that will remove and then re-add
-      # the exact same subscription. Keep around the cached set for one tick
-      # to see if that happens.
-      _.defer => @checkIfSubscriptionNeeded(key)
+      @_scheduleCleanupCheckForSubscription(key)
 
   addPrivateSubscription: (key, subscription, callback) =>
     @_subscriptions[key] = subscription
     subscription.addCallback(callback)
     return =>
       subscription.removeCallback(callback)
-      _.defer => @checkIfSubscriptionNeeded(key)
-
-  checkIfSubscriptionNeeded: (key) =>
-    subscription = @_subscriptions[key]
-    return unless subscription and subscription.callbackCount() is 0
-    delete @_subscriptions[key]
+      @_scheduleCleanupCheckForSubscription(key)
 
   printSubscriptions: =>
+    return console.log("Only in dev mode!") unless NylasEnv.inDevMode()
+
     for key, subscription of @_subscriptions
       console.log(key)
       console.group()
@@ -49,6 +45,17 @@ class QuerySubscriptionPool
         console.log("#{callback._registrationPoint}")
       console.groupEnd()
     return
+
+  _scheduleCleanupCheckForSubscription: (key) =>
+    _.defer(@_runCleanupChecks) if @_cleanupChecks.length is 0
+    @_cleanupChecks.push(key)
+
+  _runCleanupChecks: =>
+    for key in @_cleanupChecks
+      subscription = @_subscriptions[key]
+      if subscription and subscription.callbackCount() is 0
+        delete @_subscriptions[key]
+    @_cleanupChecks = []
 
   _formatRegistrationPoint: (stack) ->
     stack = stack.split('\n')

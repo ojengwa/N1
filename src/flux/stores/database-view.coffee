@@ -15,37 +15,36 @@ class DatabaseView extends ModelView
     @_count = -1
     @_itemsWithMetadata = null
     @_resultSet = null
+    @_messageQuerySubscription = new MutableQuerySubscription(DatabaseStore.findAll(Message, {threadId: ['nan']}), {asResultSet: true})
     @_threadQuerySubscription = new MutableQuerySubscription(query.limit(0), {asResultSet: true})
 
-    @_observer = @_build().subscribe (data) =>
-      [resultSet, messagesForThreads...] = data
+    messages = Rx.Observable.fromMutableQuerySubscription('message-list', @_messageQuerySubscription)
+    threads = Rx.Observable.fromMutableQuerySubscription('thread-list', @_threadQuerySubscription)
 
-      items = resultSet.models()
-      for thread, idx in items
-        items[idx] = new thread.constructor(thread)
-        items[idx].metadata = messagesForThreads[idx]
+    threads.subscribe (resultSet) =>
+      @_messageQuerySubscription.replaceQuery(DatabaseStore.findAll(Message, {threadId: resultSet.ids()}))
 
-      @_resultSet = resultSet
+    Rx.Observable.combineLatest([threads, messages]).subscribe ([threadResultSet, messageResultSet]) =>
+      items = []
+      messagesGrouped = {}
+      for message in messageResultSet.models()
+        messagesGrouped[message.threadId] ?= []
+        messagesGrouped[message.threadId].push(message)
+
+      for thread in threadResultSet.models()
+        thread = new thread.constructor(thread)
+        thread.metadata = messagesGrouped[thread.id]
+        items.push(thread)
+
+      @_resultSet = threadResultSet
       @_itemsWithMetadata = items
       @_count = 1000 # HACK
+      console.timeEnd("Resolving Messages")
+      console.profileEnd("Resolving Messages")
       console.log("TRIGGERING")
       @trigger()
 
     @
-
-  _build: ->
-    Rx.Observable.create (observer) =>
-      unsubscribe = QuerySubscriptionPool.addPrivateSubscription 'thread-list', @_threadQuerySubscription, (resultSet) ->
-        observer.onNext(resultSet)
-      return Rx.Disposable.create(unsubscribe)
-
-    .flatMapLatest (resultSet) =>
-      messagesObservables = resultSet.ids().map (id) ->
-        Rx.Observable.fromQuery(DatabaseStore.findAll(Message, {threadId: id}))
-      messagesObservables.unshift(Rx.Observable.from([resultSet]))
-      Rx.Observable.combineLatest(messagesObservables)
-
-    .debounce(1)
 
   log: ->
     return unless verbose and not NylasEnv.inSpecMode()
@@ -80,12 +79,14 @@ class DatabaseView extends ModelView
     @_itemsWithMetadata.filter(matchFn)
 
   setRetainedRange: ({start, end}) ->
-    pageSize = 10
-    pagePadding = 50
+    pageSize = 100
+    pagePadding = 100
+
+    roundToPage = (n) -> Math.max(0, Math.round(n / pageSize) * pageSize)
 
     nextQuery = @_threadQuerySubscription.query().clone()
-    nextQuery.offset(Math.max(0, Math.round((start - pagePadding) / pageSize) * pageSize))
-    nextQuery.limit((end - start) + pagePadding * 2)
+    nextQuery.offset(roundToPage(start - pagePadding))
+    nextQuery.limit(roundToPage((end - start) + pagePadding * 2))
 
     @_threadQuerySubscription.replaceQuery(nextQuery)
 

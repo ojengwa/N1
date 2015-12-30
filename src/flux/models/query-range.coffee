@@ -31,8 +31,9 @@ class QueryRange
 
   rangesBySubtracting: (b) ->
     return [] unless b
+
     if @isInfinite() or b.isInfinite()
-      throw new Error("Unimplemented")
+      throw new Error("You cannot subtract infinite ranges.")
 
     uncovered = []
     if b.start > @start
