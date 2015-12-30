@@ -6,7 +6,7 @@ class MutableQuerySubscription extends QuerySubscription
     @_range = new Range(start: 0, end: 0)
     super
     if @_query.range().limit or @_query.range().offset
-      throw new Error("MutableQuerySubscription::Query mut not have an existing limit or offset.")
+      throw new Error("MutableQuerySubscription::Query must not have an existing limit or offset.")
 
   range: =>
     @_range
@@ -17,7 +17,7 @@ class MutableQuerySubscription extends QuerySubscription
 
     if not range.intersects(@_range)
       console.log("Emptying ID and model cache")
-      @_modelCache.empty()
+      @_modelCache.removeAll()
       @_ids = null
 
     @_range = range

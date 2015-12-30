@@ -1,5 +1,5 @@
 
-class Range
+class QueryRange
   constructor: ({@start, @end} = {}) ->
     throw new Error("You must specify a start") if @start is undefined
     throw new Error("You must specify an end") if @end is undefined
@@ -30,4 +30,4 @@ class Range
       start: Math.min(@start, b.start)
       end: Math.max(@end, b.end)
 
-module.exports = Range
+module.exports = QueryRange

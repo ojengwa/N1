@@ -1,9 +1,10 @@
 _ = require 'underscore'
 PromiseQueue = require 'promise-queue'
 DatabaseChangeRecord = require '../stores/database-change-record'
-LRUCache = require './lru-cache'
-Range = require './range'
-RangedArray = require './ranged-array'
+LRUCache = require '../../lru-cache'
+
+QueryRange = require './query-range'
+QueryRangedResultSet = require './query-ranged-result-set'
 
 class QuerySubscription
   constructor: (@_query, @_options) ->
@@ -20,7 +21,6 @@ class QuerySubscription
     @_ids = null
     @_version = 0
     @_callbacks = []
-    @_modelCache = new LRUCache(1000)
 
     @_fetchQueue ?= new PromiseQueue(1, Infinity)
     @_fetchRange(@range(), entireModels: true).then =>
@@ -67,9 +67,9 @@ class QuerySubscription
     mustRefetchAllIds = false
 
     if record.type is 'unpersist'
-      for model in record.objects
-        @_modelCache.unset(model.id)
-        idx = @_ids.indexOfValue(model.id)
+      for item in record.objects
+        @_modelCache.remove(item.id)
+        idx = @_ids.indexOfValue(item.id)
         if idx isnt -1
           @_ids.removeValueAtIndex(idx)
 
@@ -80,16 +80,16 @@ class QuerySubscription
         itemShouldBeInSet = item.matches(@_query.matchers())
 
         if itemIsInSet and not itemShouldBeInSet
-          @_modelCache.unset(item.id)
+          @_modelCache.remove(item.id)
           @_ids.removeValueAtIndex(idx)
 
         else if itemShouldBeInSet and not itemIsInSet
-          @_modelCache.set(item.id, item)
+          @_modelCache.put(item.id, item)
           mustRefetchAllIds = true
 
         else if itemIsInSet
           oldItem = @_modelCache.get(item.id)
-          @_modelCache.set(item.id, item)
+          @_modelCache.put(item.id, item)
 
           if @_itemSortOrderHasChanged(oldItem, item)
             mustRefetchAllIds = true
@@ -116,32 +116,36 @@ class QuerySubscription
     return false
 
   _result: =>
-    set = @_ids.values().map(@_modelCache.get)
+    set = @_ids.values().map (id) => @_modelCache.get(id)
     [@_query.formatResultObjects(set), @_ids.range()]
 
   _invokeCallbacks: =>
     result = @_result()
+    return unless result
     @_callbacks.forEach (callback) =>
       callback.apply(@, result)
 
   _invokeCallback: (callback) =>
-    callback.apply(@, @_result())
+    result = @_result()
+    return unless result
+    callback.apply(@, result)
 
   _fetchRange: (range, {entireModels} = {}) =>
     DatabaseStore = require '../stores/database-store'
+
     version = @_version += 1
+    cancelled = => version isnt @_version
 
     @_fetchQueue.add =>
-      return unless version is @_version
-
+      return if cancelled()
       query = @_query.clone().offset(range.start).limit(range.end - range.start)
       query.idsOnly() unless entireModels
 
       DatabaseStore.run(query, {format: false}).then (results) =>
-        return unless version is @_version
+        return if cancelled()
 
         if entireModels
-          @_modelCache.set(m.id, m) for m in results
+          @_modelCache.put(m.id, m) for m in results
           rangeIds = _.pluck(results, 'id')
         else
           rangeIds = results
@@ -164,7 +168,7 @@ class QuerySubscription
 
     DatabaseStore = require '../stores/database-store'
     DatabaseStore.findAll(@_query._klass, {id: ids}).then (models) =>
-      @_modelCache.set(m.id, m) for m in models
+      @_modelCache.put(m.id, m) for m in models
 
 
 module.exports = QuerySubscription

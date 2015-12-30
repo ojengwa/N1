@@ -1,7 +1,8 @@
 Range = require './range'
 
-class RangedArray
+class QueryRangedResultSet
   constructor: (range, values) ->
+    @_modelCache = new LRUCache(1000)
     @_start = range.start
     @_values = values
 
@@ -33,4 +34,4 @@ class RangedArray
     @_values = [].concat(@_values.slice(0, Math.max(range.start - @_start, 0)), values, @_values.slice(Math.max(range.end - @_start, 0)))
     @_start = Math.min(@_start, range.start)
 
-module.exports = RangedArray
+module.exports = QueryRangedResultSet
