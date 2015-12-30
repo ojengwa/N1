@@ -46,9 +46,20 @@ class ModelQuery
     @_orders = []
     @_range = {}
     @_returnOne = false
+    @_returnIds = false
     @_includeJoinedData = []
     @_count = false
     @
+
+  clone: ->
+    q = new ModelQuery(@_klass, @_database).where(@_matchers).order(@_orders)
+    q._orders = [].concat(@_orders)
+    q._includeJoinedData = [].concat(@_includeJoinedData)
+    q._range = {start: @_range.start, end: @_range.end}
+    q._returnOne = @_returnOne
+    q._returnIds = @_returnIds
+    q._count = @_count
+    q
 
   # Public: Add one or more where clauses to the query
   #
@@ -156,6 +167,10 @@ class ModelQuery
     @_count = true
     @
 
+  idsOnly: ->
+    @_returnIds = true
+    @
+
   ###
   Query Execution
   ###
@@ -179,6 +194,8 @@ class ModelQuery
 
     if @_count
       return result[0]['count'] / 1
+    else if @_returnIds
+      return result.map (row) -> row['id']
     else
       try
         objects = result.map (row) =>
@@ -206,6 +223,8 @@ class ModelQuery
 
     if @_count
       result = "COUNT(*) as count"
+    else if @_returnIds
+      result = "`#{@_klass.name}`.`id`"
     else
       result = "`#{@_klass.name}`.`data`"
       @_includeJoinedData.forEach (attr) =>

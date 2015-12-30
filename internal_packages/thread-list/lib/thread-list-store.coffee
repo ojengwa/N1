@@ -68,11 +68,11 @@ class ThreadListStore extends NylasStore
     if mailViewFilter.searchQuery
       @setView(new SearchView(mailViewFilter.searchQuery, account.id))
     else
-      matchers = []
-      matchers.push Thread.attributes.accountId.equal(account.id)
+      matchers = [Thread.attributes.accountId.equal(account.id)]
       matchers = matchers.concat(mailViewFilter.matchers())
 
-      view = new DatabaseView Thread, {matchers}, (ids) =>
+      query = DatabaseStore.findAll(Thread).where(matchers)
+      view = new DatabaseView query, (ids) =>
         DatabaseStore.findAll(Message)
         .where(Message.attributes.threadId.in(ids))
         .where(Message.attributes.accountId.equal(account.id))

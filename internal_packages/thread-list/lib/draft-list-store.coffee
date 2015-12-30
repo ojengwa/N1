@@ -18,7 +18,7 @@ class DraftListStore extends NylasStore
     # _onDataChanged method will ignore our newly created draft because it
     # has its draft bit set to false (since it's now a message)!
     @listenTo Actions.sendDraftSuccess, => @_view.invalidate()
-    @_createView()
+    # @_createView() # TODO HACK
 
   view: =>
     @_view

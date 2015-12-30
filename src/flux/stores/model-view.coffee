@@ -47,9 +47,6 @@ class ModelView
     pageIdx = idx - page * @_pageSize
     @_pages[page]?.items[pageIdx] ? null
 
-  getStub: ->
-    @_sample ?= new klass
-
   getById: (id) ->
     return null unless id
     for pageIdx, page of @_pages
