@@ -54,9 +54,10 @@ class DatabaseView extends ModelView
         thread.metadata = messagesResultSets[idx]?.models()
         thread
 
-      @_countEstimate = @_resultSet.range().end
       if @_resultSet.range().end is @_threadsQuerySubscription.query().range().end
-        @_countEstimate += 1
+        @_countEstimate = Math.max(@_countEstimate, @_resultSet.range().end + 1)
+      else
+        @_countEstimate = @_resultSet.range().end
 
       console.timeEnd("Resolving Messages")
       @trigger()

@@ -140,7 +140,12 @@ class ListTabular extends React.Component
     innerStyles =
       height: @props.dataView.count() * @props.itemHeight
 
-    <ScrollRegion ref="container" onScroll={@onScroll} tabIndex="-1" className="list-container list-tabular" scrollTooltipComponent={@props.scrollTooltipComponent} >
+    <ScrollRegion
+      ref="container"
+      onScroll={@onScroll}
+      tabIndex="-1"
+      className="list-container list-tabular"
+      scrollTooltipComponent={@props.scrollTooltipComponent}>
       <div className="list-rows" style={innerStyles}>
         {@_rows()}
       </div>
