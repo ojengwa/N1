@@ -19,13 +19,18 @@ class QuerySubscription
     @_query.finalize()
 
     @_set = null
-    @_lastResult = null
-
     @_version = 0
     @_callbacks = []
-    @_modelCache = new LRUCache(100)
+    @_lastResult = null
+    @_modelCache = {}
 
-    @_fetchRange(@_query.range(), entireModels: true).then(@_fillMissingAndInvoke)
+    if @_options.initialModels
+      ids = _.pluck(@_options.initialModels, 'id')
+      @_set = new MutableQueryResultSet(_offset: 0, _ids: ids)
+      @_appendToModelCache(@_options.initialModels)
+      @_createResultAndTrigger()
+    else
+      @update()
 
   query: =>
     @_query
@@ -36,7 +41,7 @@ class QuerySubscription
     @_callbacks.push(callback)
 
     if @_lastResult
-      _.defer =>
+      process.nextTick =>
         return unless @_lastResult
         callback(@_lastResult)
 
@@ -55,20 +60,18 @@ class QuerySubscription
     return unless record.objectClass is @_query.objectClass()
     return unless record.objects.length > 0
 
-    if not @_set
-      @_fetchRange(@_query.range(), entireModels: true)
-      return
+    return @update() if not @_set
 
-    mustCancelRunningQueries = false
+    impactCount = 0
     mustRefetchAllIds = false
 
     if record.type is 'unpersist'
       for item in record.objects
-        @_modelCache.remove(item.id)
+        delete @_modelCache[item.id]
         offset = @_set.offsetOfId(item.id)
         if offset isnt -1
           @_set.removeAtOffset(offset)
-          mustCancelRunningQueries = true
+          impactCount += 1
 
     else if record.type is 'persist'
       for item in record.objects
@@ -77,30 +80,24 @@ class QuerySubscription
         itemShouldBeInSet = item.matches(@_query.matchers())
 
         if itemIsInSet and not itemShouldBeInSet
-          @_modelCache.remove(item.id)
+          delete @_modelCache[item.id]
           @_set.removeAtOffset(offset)
-          mustCancelRunningQueries = true
+          impactCount += 1
 
         else if itemShouldBeInSet and not itemIsInSet
-          @_modelCache.put(item.id, item)
+          @_modelCache[item.id] = item
           mustRefetchAllIds = true
-          mustCancelRunningQueries = true
+          impactCount += 1
 
         else if itemIsInSet
-          oldItem = @_modelCache.get(item.id)
-          @_modelCache.put(item.id, item)
-          mustCancelRunningQueries = true
+          oldItem = @_modelCache[item.id]
+          @_modelCache[item.id] = item
+          impactCount += 1
           mustRefetchAllIds = true if @_itemSortOrderHasChanged(oldItem, item)
 
-    if mustCancelRunningQueries
-        @_version += 1
-
-    if mustRefetchAllIds
-      refetchPromise = @_fetchRange(@_query.range())
-    else
-      refetchPromise = @_fetchMissingRanges()
-
-    refetchPromise.then(@_fillMissingAndInvoke)
+    if impactCount > 0
+      @_set = null if mustRefetchAllIds
+      @update()
 
   _itemSortOrderHasChanged: (old, updated) ->
     for descriptor in @_query.orderSortDescriptors()
@@ -113,8 +110,32 @@ class QuerySubscription
 
     return false
 
+  update: =>
+    version = @_version += 1
+
+    desiredRange = @_query.range()
+    currentRange = @_set?.range()
+
+    if currentRange and not currentRange.isInfinite() and not desiredRange.isInfinite()
+      ranges = QueryRange.rangesBySubtracting(desiredRange, currentRange)
+      entireModels = true
+    else
+      ranges = [desiredRange]
+      entireModels = Object.keys(@_modelCache).length is 0
+
+    Promise.each ranges, (range) =>
+      return unless version is @_version
+      @_fetchRange(range, {entireModels})
+    .then =>
+      return unless version is @_version
+      ids = @_set.ids().filter (id) => not @_modelCache[id]
+      return if ids.length is 0
+      return DatabaseStore.findAll(@_query._klass, {id: ids}).then(@_appendToModelCache)
+    .then =>
+      return unless version is @_version
+      @_createResultAndTrigger()
+
   _fetchRange: (range, {entireModels} = {}) =>
-    version = @_version
     rangeQuery = undefined
 
     unless range.isInfinite()
@@ -127,10 +148,7 @@ class QuerySubscription
 
     rangeQuery ?= @_query
 
-    # console.log("Fetching #{range.start} - #{range.end}")
     DatabaseStore.run(rangeQuery, {format: false}).then (results) =>
-      return console.log("Cancelled") unless version is @_version
-
       ids = if entireModels then _.pluck(results, 'id') else results
 
       @_set = null unless @_set?.range().intersects(range)
@@ -138,42 +156,27 @@ class QuerySubscription
       @_set.addIdsInRange(ids, range)
       @_set.clipToRange(@_query.range())
 
-      @_modelCache.limit = Math.max(@_modelCache.limit, @_set.count() + 20)
-      if entireModels
-        @_modelCache.put(model.id, model) for model in results
+      @_appendToModelCache(results) if entireModels
 
-  _fetchMissingRanges: =>
-    desiredRange = @_query.range()
-    currentRange = @_set?.range()
+  _appendToModelCache: (arr) =>
+    @_modelCache[m.id] = m for m in arr
 
-    if currentRange and not currentRange.isInfinite() and not desiredRange.isInfinite()
-      ranges = desiredRange.rangesBySubtracting(currentRange)
+  _trimModelCache: =>
+    old = @_modelCache
+    @_modelCache = {}
+    @_modelCache[id] = old[id] for id in @_set.ids()
+
+  _createResultAndTrigger: =>
+    @_trimModelCache()
+    @_set.attachModelsFrom(@_modelCache)
+
+    if @_options.asResultSet
+      @_lastResult = @_set.immutableClone()
     else
-      ranges = [desiredRange]
+      @_lastResult = @_query.formatResultObjects(@_set.models())
 
-    Promise.each ranges, (range) =>
-      @_fetchRange(range, {entireModels: true})
+    @_callbacks.forEach (callback) =>
+      callback(@_lastResult)
 
-  _fillMissingAndInvoke: =>
-    set = @_set.clone()
-    ids = set.ids().filter (id) => not @_modelCache.get(id)
-
-    if ids.length is 0
-      query = Promise.resolve([])
-    else
-      DatabaseStore = require '../stores/database-store'
-      query = DatabaseStore.findAll(@_query._klass, {id: ids})
-
-    query.then (models) =>
-      @_modelCache.put(m.id, m) for m in models
-
-      set.attachModelsFrom(@_modelCache.toHash())
-      if @_options.asResultSet
-        @_lastResult = set.immutableClone()
-      else
-        @_lastResult = @_query.formatResultObjects(set.models())
-
-      @_callbacks.forEach (callback) =>
-        callback(@_lastResult)
 
 module.exports = QuerySubscription

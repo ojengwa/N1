@@ -28,7 +28,7 @@ class MutableQueryResultSet extends QueryResultSet
       @_ids.length = Math.max(0, range.limit)
 
   addIdsInRange: (rangeIds, range) ->
-    if @_offset is null
+    if @_offset is null or range.isInfinite()
       @_ids = rangeIds
       @_offset = range.offset
     else

@@ -11,10 +11,10 @@ class MutableQuerySubscription extends QuerySubscription
 
     nextQuery.finalize()
     @_query = nextQuery
-    
+
     unless @_set and rangeIsOnlyChange
       @_set = null
 
-    @_fetchMissingRanges().then(@_fillMissingAndInvoke)
-
+    @update()
+    
 module.exports = MutableQuerySubscription

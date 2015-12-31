@@ -2,6 +2,29 @@ class QueryRange
   @infinite: ->
     return new QueryRange({limit: null, offset: null})
 
+  @rangeWithUnion: (a, b) ->
+    return QueryRange.infinite() if a.isInfinite() or b.isInfinite()
+    if not a.intersects(b)
+      throw new Error('You cannot union ranges which do not overlap.')
+
+    new QueryRange
+      start: Math.min(a.start, b.start)
+      end: Math.max(a.end, b.end)
+
+  @rangesBySubtracting: (a, b) ->
+    return [] unless b
+
+    if a.isInfinite() or b.isInfinite()
+      throw new Error("You cannot subtract infinite ranges.")
+
+    uncovered = []
+    if b.start > a.start
+      uncovered.push new QueryRange({start: a.start, end: Math.min(a.end, b.start)})
+    if b.end < a.end
+      uncovered.push new QueryRange({start: Math.max(a.start, b.end), end: a.end})
+    uncovered
+
+
   Object.defineProperty @prototype, "start",
     enumerable: false
     get: -> @offset
@@ -29,26 +52,7 @@ class QueryRange
     return true if @isInfinite() or b.isInfinite()
     return @start <= b.start <= @end or @start <= b.end <= @end
 
-  rangesBySubtracting: (b) ->
-    return [] unless b
-
-    if @isInfinite() or b.isInfinite()
-      throw new Error("You cannot subtract infinite ranges.")
-
-    uncovered = []
-    if b.start > @start
-      uncovered.push new QueryRange({start: @start, end: Math.min(@end, b.start)})
-    if b.end < @end
-      uncovered.push new QueryRange({start: Math.max(@start, b.end), end: @end})
-    uncovered
-
-  rangeFromUnion: (b) ->
-    return QueryRange.infinite() if @isInfinite() or b.isInfinite()
-    if not @intersects(b)
-      throw new Error('You cannot union ranges which do not overlap.')
-
-    new QueryRange
-      start: Math.min(@start, b.start)
-      end: Math.max(@end, b.end)
+  toString: ->
+    "QueryRange{#{@start} - #{@end}}"
 
 module.exports = QueryRange

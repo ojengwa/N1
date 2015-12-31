@@ -3,6 +3,7 @@ Rx = require 'rx-lite'
 DatabaseStore = require './database-store'
 Message = require '../models/message'
 QuerySubscriptionPool = require '../models/query-subscription-pool'
+QuerySubscription = require '../models/query-subscription'
 MutableQuerySubscription = require '../models/mutable-query-subscription'
 ModelView = require './model-view'
 
@@ -12,39 +13,62 @@ class DatabaseView extends ModelView
 
   constructor: (query, config = {}, @_metadataProvider) ->
     super
-    @_count = -1
+    @_countEstimate = -1
     @_itemsWithMetadata = null
     @_resultSet = null
-    @_messageQuerySubscription = new MutableQuerySubscription(DatabaseStore.findAll(Message, {threadId: ['nan']}), {asResultSet: true})
-    @_threadQuerySubscription = new MutableQuerySubscription(query.limit(0), {asResultSet: true})
 
-    messages = Rx.Observable.fromMutableQuerySubscription('message-list', @_messageQuerySubscription)
-    threads = Rx.Observable.fromMutableQuerySubscription('thread-list', @_threadQuerySubscription)
+    @_threadsQuerySubscription = new MutableQuerySubscription(query.limit(0), {asResultSet: true})
 
-    threads.subscribe (resultSet) =>
-      @_messageQuerySubscription.replaceQuery(DatabaseStore.findAll(Message, {threadId: resultSet.ids()}))
+    $threadsResultSet = Rx.Observable.fromPrivateQuerySubscription('thread-list', @_threadsQuerySubscription)
+    $messagesResultSets = {}
 
-    Rx.Observable.combineLatest([threads, messages]).subscribe ([threadResultSet, messageResultSet]) =>
-      items = []
+    Rx.Observable.zip([
+      $threadsResultSet,
+      $threadsResultSet.flatMapLatest (threadsResultSet) =>
+        console.time("Resolving Messages")
+        missingIds = threadsResultSet.ids().filter (id) -> not $messagesResultSets[id]
+        return Rx.Observable.from([[]]) if missingIds.length is 0
+        Rx.Observable.fromPromise(DatabaseStore.findAll(Message, threadId: missingIds))
+    ])
+    .flatMapLatest ([threadsResultSet, messagesForNewThreads]) =>
       messagesGrouped = {}
-      for message in messageResultSet.models()
+      for message in messagesForNewThreads
         messagesGrouped[message.threadId] ?= []
         messagesGrouped[message.threadId].push(message)
 
-      for thread in threadResultSet.models()
-        thread = new thread.constructor(thread)
-        thread.metadata = messagesGrouped[thread.id]
-        items.push(thread)
+      oldSets = $messagesResultSets
+      $messagesResultSets = {}
 
-      @_resultSet = threadResultSet
-      @_itemsWithMetadata = items
-      @_count = 1000 # HACK
+      sets = threadsResultSet.ids().map (id) =>
+        $messagesResultSets[id] = oldSets[id] || @_observableForThreadMessages(id, messagesGrouped[id])
+        $messagesResultSets[id]
+      sets.unshift(Rx.Observable.from([threadsResultSet]))
+
+      Rx.Observable.combineLatest(sets)
+
+    .subscribe ([threadsResultSet, messagesResultSets...]) =>
       console.timeEnd("Resolving Messages")
-      console.profileEnd("Resolving Messages")
-      console.log("TRIGGERING")
+      @_resultSet = threadsResultSet
+      @_itemsWithMetadata = threadsResultSet.models().map (thread, idx) ->
+        thread = new thread.constructor(thread)
+        thread.metadata = messagesResultSets[idx]?.models()
+        thread
+
+      @_countEstimate = @_resultSet.range().end
+      if @_resultSet.range().end is @_threadsQuerySubscription.query().range().end
+        @_countEstimate += 1
+
+      console.timeEnd("Resolving Messages")
       @trigger()
 
     @
+
+  _observableForThreadMessages: (id, initialModels) ->
+    subscription = new QuerySubscription(DatabaseStore.findAll(Message, threadId: id), {
+      asResultSet: true,
+      initialModels: initialModels
+    })
+    Rx.Observable.fromPrivateQuerySubscription('message-'+id, subscription)
 
   log: ->
     return unless verbose and not NylasEnv.inSpecMode()
@@ -55,7 +79,7 @@ class DatabaseView extends ModelView
   # Accessing Data
 
   count: ->
-    @_count
+    @_countEstimate
 
   loaded: ->
     @_resultSet isnt null
@@ -67,8 +91,7 @@ class DatabaseView extends ModelView
     @_itemsWithMetadata[offset - @_resultSet.range().offset]
 
   getById: (id) ->
-    return null unless id
-    return @_resultSet.modelCache.get(id)
+    return _.findWhere(@_itemsWithMetadata, {id})
 
   indexOfId: (id) ->
     return -1 unless @_resultSet and id
@@ -79,19 +102,19 @@ class DatabaseView extends ModelView
     @_itemsWithMetadata.filter(matchFn)
 
   setRetainedRange: ({start, end}) ->
-    pageSize = 100
+    pageSize = 50
     pagePadding = 100
 
     roundToPage = (n) -> Math.max(0, Math.round(n / pageSize) * pageSize)
 
-    nextQuery = @_threadQuerySubscription.query().clone()
+    nextQuery = @_threadsQuerySubscription.query().clone()
     nextQuery.offset(roundToPage(start - pagePadding))
     nextQuery.limit(roundToPage((end - start) + pagePadding * 2))
 
-    @_threadQuerySubscription.replaceQuery(nextQuery)
+    @_threadsQuerySubscription.replaceQuery(nextQuery)
 
   matchers: ->
-    @_threadQuerySubscription.query().matchers()
+    @_threadsQuerySubscription.query().matchers()
 
   invalidate: ({changed, shallow} = {}) ->
 
