@@ -1,13 +1,11 @@
 _ = require 'underscore'
 DatabaseStore = require './database-store'
 Thread = require '../models/thread'
-ModelView = require './model-view'
 NylasAPI = require '../nylas-api'
 
-class SearchView extends ModelView
+class SearchQuerySubscription
 
-  constructor: (@_query, @_accountId) ->
-    super
+  constructor: (@_terms, @_accountId) ->
     @_queryResultTotal = -1
     @_querySort = 'datetime'
     _.defer => @retrievePage(0)

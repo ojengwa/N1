@@ -2,6 +2,7 @@ _ = require 'underscore'
 QueryRange = require './query-range'
 QueryResultSet = require './query-result-set'
 
+# TODO: Make mutator methods QueryResultSet.join(), QueryResultSet.clip...
 class MutableQueryResultSet extends QueryResultSet
 
   immutableClone: ->
