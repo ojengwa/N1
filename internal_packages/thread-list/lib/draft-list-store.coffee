@@ -1,36 +1,30 @@
 NylasStore = require 'nylas-store'
 Reflux = require 'reflux'
+Rx = require 'rx-lite'
 _ = require 'underscore'
 {Message,
  Actions,
- DatabaseStore,
  AccountStore,
- FocusedContentStore,
- DestroyDraftTask,
- DatabaseView} = require 'nylas-exports'
+ MutableQuerySubscription,
+ QueryResultSetView,
+ DatabaseStore} = require 'nylas-exports'
 
 class DraftListStore extends NylasStore
   constructor: ->
-    @listenTo DatabaseStore, @_onDataChanged
     @listenTo AccountStore, @_onAccountChanged
 
-    # It's important to listen to sendDraftSuccess because the
-    # _onDataChanged method will ignore our newly created draft because it
-    # has its draft bit set to false (since it's now a message)!
-    @listenTo Actions.sendDraftSuccess, => @_view.invalidate()
-    # @_createView() # TODO HACK
+    @subscription = new MutableQuerySubscription(@_queryForCurrentAccount(), {asResultSet: true})
+    $resultSet = Rx.Observable.fromPrivateQuerySubscription('draft-list', @subscription)
+
+    @_view = new QueryResultSetView $resultSet, ({start, end}) =>
+      @subscription.replaceQuery(@_queryForCurrentAccount().page(start, end))
 
   view: =>
     @_view
 
-  _createView: =>
+  _queryForCurrentAccount: =>
     account = AccountStore.current()
-
-    if @unlisten
-      @unlisten()
-      @_view = null
-
-    return unless account
+    return null unless account
 
     query = DatabaseStore.findAll(Message)
       .include(Message.attributes.body)
@@ -39,17 +33,9 @@ class DraftListStore extends NylasStore
         Message.attributes.accountId.equal(account.id)
         Message.attributes.draft.equal(true)
       ])
-
-    @_view = new DatabaseView(query)
-
-    @unlisten = @_view.listen => @trigger({})
+      .page(0, 1)
 
   _onAccountChanged: =>
-    @_createView()
-
-  _onDataChanged: (change) =>
-    return unless change.objectClass is Message.name
-    return unless @_view
-    @_view.invalidate({change: change, shallow: true})
+    @subscription.replaceQuery(@_queryForCurrentAccount())
 
 module.exports = new DraftListStore()

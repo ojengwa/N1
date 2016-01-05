@@ -8,6 +8,8 @@ Rx = require 'rx-lite'
  QueryResultSetView,
  MutableQuerySubscription} = require 'nylas-exports'
 
+PaginatingSearch = require './paginating-search'
+
 _flatMapJoiningMessages = ($threadsResultSet) =>
   # DatabaseView leverages `QuerySubscription` for threads /and/ for the
   # messages on each thread, which are passed to out as `thread.metadata`.
@@ -78,9 +80,11 @@ module.exports = ThreadListViewFactory =
       ThreadListViewFactory.viewForQuery(query)
 
   viewForSearch: (terms, accountId) =>
-    subscription = new SearchQuerySubscription(terms, accountId)
+    search = new PaginatingSearch(terms, accountId)
+    $resultSet = _flatMapJoiningMessages(search.observable())
 
-    $resultSet = _flatMapJoiningMessages($resultSet)
+    return new QueryResultSetView $resultSet, ({start, end}) =>
+      search.setRange({start, end})
 
   viewForQuery: (query) =>
     subscription = new MutableQuerySubscription(query, {asResultSet: true})
@@ -88,12 +92,4 @@ module.exports = ThreadListViewFactory =
     $resultSet = _flatMapJoiningMessages($resultSet)
 
     return new QueryResultSetView $resultSet, ({start, end}) =>
-      pageSize = 50
-      pagePadding = 100
-
-      roundToPage = (n) -> Math.max(0, Math.round(n / pageSize) * pageSize)
-
-      nextQuery = query.clone()
-      nextQuery.offset(roundToPage(start - pagePadding))
-      nextQuery.limit(roundToPage((end - start) + pagePadding * 2))
-      subscription.replaceQuery(nextQuery)
+      subscription.replaceQuery(query.clone().page(start, end))

@@ -47,6 +47,9 @@ class QueryResultSet
   count: ->
     @_ids.length
 
+  empty: ->
+    @count() is 0
+
   ids: ->
     @_ids
 

@@ -16,8 +16,8 @@ class ModelView
     @_emitter.emit('trigger', arg)
 
   listen: (callback, bindContext) ->
-    eventHandler = (args) ->
-      callback.apply(bindContext, args)
+    eventHandler = ->
+      callback.apply(bindContext, arguments)
     @_emitter.addListener('trigger', eventHandler)
     return => @_emitter.removeListener('trigger', eventHandler)
 

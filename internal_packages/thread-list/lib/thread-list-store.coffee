@@ -94,23 +94,23 @@ class ThreadListStore extends NylasStore
       keyboardId = FocusedContentStore.keyboardCursorId('thread')
       viewModeAutofocuses = WorkspaceStore.layoutMode() is 'split' or WorkspaceStore.topSheet().root is true
 
-      focusedIndex = previous.indexOfId(focusedId)
-      keyboardIndex = previous.indexOfId(keyboardId)
+      focusedIndex = previous.offsetOfId(focusedId)
+      keyboardIndex = previous.offsetOfId(keyboardId)
 
       shiftIndex = (i) =>
-        if i > 0 and (next.get(i - 1)?.unread or i >= next.count())
+        if i > 0 and (next.modelAtOffset(i - 1)?.unread or i >= next.count())
           return i - 1
         else
           return i
 
-      focusedLost = focusedIndex >= 0 and next.indexOfId(focusedId) is -1
-      keyboardLost = keyboardIndex >= 0 and next.indexOfId(keyboardId) is -1
+      focusedLost = focusedIndex >= 0 and next.offsetOfId(focusedId) is -1
+      keyboardLost = keyboardIndex >= 0 and next.offsetOfId(keyboardId) is -1
 
       if viewModeAutofocuses and focusedLost
-        Actions.setFocus(collection: 'thread', item: next.get(shiftIndex(focusedIndex)))
+        Actions.setFocus(collection: 'thread', item: next.modelAtOffset(shiftIndex(focusedIndex)))
 
       if keyboardLost
-        Actions.setCursorPosition(collection: 'thread', item: next.get(shiftIndex(keyboardIndex)))
+        Actions.setCursorPosition(collection: 'thread', item: next.modelAtOffset(shiftIndex(keyboardIndex)))
 
     @trigger(@)
 

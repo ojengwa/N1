@@ -155,7 +155,7 @@ class ScrollRegion extends React.Component
     @_heightObserver = new MutationObserver (mutations) =>
       recompute = false
       mutations.forEach (mutation) ->
-        recompute ||= mutation.oldValue.indexOf('height:') isnt -1
+        recompute ||= !mutation.oldValue or mutation.oldValue.indexOf('height:') isnt -1
       @recomputeDimensions({useCachedValues: false}) if recompute
 
     @_heightObserver.observe(React.findDOMNode(@refs.content), {

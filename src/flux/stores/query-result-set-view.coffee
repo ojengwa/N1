@@ -30,7 +30,7 @@ class QueryResultSetView extends ModelView
 
       previousResultSet = @_resultSet
       @_resultSet = nextResultSet
-      console.log("Triggering")
+
       @trigger({previous: previousResultSet, next: nextResultSet})
 
   setRetainedRange: ({start, end}) ->
@@ -46,7 +46,7 @@ class QueryResultSetView extends ModelView
     @_resultSet isnt null
 
   empty: =>
-    @_resultSet.count() is 0
+    not @_resultSet or @_resultSet.empty()
 
   get: (offset) =>
     return null unless @_resultSet

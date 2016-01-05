@@ -9,28 +9,25 @@ ModelQuery = require './query'
 
 class QuerySubscription
   constructor: (@_query, @_options = {}) ->
-
-    if not @_query or not (@_query instanceof ModelQuery)
-      throw new Error("QuerySubscription: Must be constructed with a ModelQuery. Got #{@_query}")
-
-    if @_query._count
-      throw new Error("QuerySubscriptionPool::add - You cannot listen to count queries.")
-
-    @_query.finalize()
-
     @_set = null
     @_version = 0
     @_callbacks = []
     @_lastResult = null
     @_modelCache = {}
 
-    if @_options.initialModels
-      ids = _.pluck(@_options.initialModels, 'id')
-      @_set = new MutableQueryResultSet(_offset: 0, _ids: ids)
-      @_appendToModelCache(@_options.initialModels)
-      @_createResultAndTrigger()
-    else
-      @update()
+    if @_query
+      if @_query._count
+        throw new Error("QuerySubscriptionPool::add - You cannot listen to count queries.")
+
+      @_query.finalize()
+
+      if @_options.initialModels
+        ids = _.pluck(@_options.initialModels, 'id')
+        @_set = new MutableQueryResultSet(_offset: 0, _ids: ids)
+        @_appendToModelCache(@_options.initialModels)
+        @_createResultAndTrigger()
+      else
+        @update()
 
   query: =>
     @_query
@@ -57,7 +54,7 @@ class QuerySubscription
     @_callbacks.length
 
   applyChangeRecord: (record) =>
-    return unless record.objectClass is @_query.objectClass()
+    return unless @_query and record.objectClass is @_query.objectClass()
     return unless record.objects.length > 0
 
     return @update() if not @_set

@@ -160,6 +160,16 @@ class ModelQuery
     @_range.offset = offset
     @
 
+  # Public:
+  #
+  # A convenience method for setting both limit and offset given a desired page size.
+  #
+  page: (start, end, pageSize = 50, pagePadding = 100) ->
+    roundToPage = (n) -> Math.max(0, Math.round(n / pageSize) * pageSize)
+    @offset(roundToPage(start - pagePadding))
+    @limit(roundToPage(end + pagePadding) - @_range.offset)
+    @
+
   # Public: Set the `count` flag - instead of returning inflated models,
   # the query will return the result `COUNT`.
   #
