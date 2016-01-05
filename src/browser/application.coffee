@@ -74,6 +74,23 @@ class Application
     @config = new Config({@configDirPath, @resourcePath})
     @config.load()
 
+    ###
+    Temporary: Remove plugins with names of examples
+    ###
+    if not @config.get('core.examplesEnabled')
+      plugins = fs.readdirSync(path.join(@configDirPath, 'packages'))
+      examples = fs.readdirSync(path.join(@resourcePath, 'examples'))
+      examplesEnabled = plugins.filter (pluginName) -> pluginName in examples and pluginName[0] isnt '.'
+      @config.set('core.examplesEnabled', examplesEnabled)
+
+      deprecatedPath = path.join(@configDirPath, 'packages-deprecated')
+      fs.mkdirSync(deprecatedPath) unless fs.existsSync(deprecatedPath)
+
+      examplesEnabled.forEach (dir) =>
+        prevPath = path.join(@configDirPath, 'packages', dir)
+        nextPath = path.join(deprecatedPath, dir)
+        fs.renameSync(prevPath, nextPath)
+
     # Normally, you enter dev mode by passing the --dev command line flag.
     # But for developers using the compiled app, it's easier to toggle dev
     # mode from the menu and have it persist through relaunch.
