@@ -2,7 +2,6 @@ _ = require 'underscore'
 PromiseQueue = require 'promise-queue'
 DatabaseStore = require '../stores/database-store'
 DatabaseChangeRecord = require '../stores/database-change-record'
-LRUCache = require '../../lru-cache'
 QueryRange = require './query-range'
 MutableQueryResultSet = require './mutable-query-result-set'
 ModelQuery = require './query'
@@ -166,6 +165,10 @@ class QuerySubscription
   _createResultAndTrigger: =>
     @_trimModelCache()
     @_set.attachModelsFrom(@_modelCache)
+
+    unless @_set.isComplete()
+      console.warn("QuerySubscription: tried to publish a result set missing models.")
+      return
 
     if @_options.asResultSet
       @_lastResult = @_set.immutableClone()
