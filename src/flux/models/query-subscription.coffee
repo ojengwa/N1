@@ -1,10 +1,7 @@
 _ = require 'underscore'
-PromiseQueue = require 'promise-queue'
 DatabaseStore = require '../stores/database-store'
-DatabaseChangeRecord = require '../stores/database-change-record'
 QueryRange = require './query-range'
 MutableQueryResultSet = require './mutable-query-result-set'
-ModelQuery = require './query'
 
 class QuerySubscription
   constructor: (@_query, @_options = {}) ->

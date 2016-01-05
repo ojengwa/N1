@@ -36,7 +36,8 @@ class QuerySubscriptionPool
       @_scheduleCleanupCheckForSubscription(key)
 
   printSubscriptions: =>
-    return console.log("Only in dev mode!") unless NylasEnv.inDevMode()
+    unless NylasEnv.inDevMode()
+      return console.log("printSubscriptions is only available in developer mode.")
 
     for key, subscription of @_subscriptions
       console.log(key)
@@ -47,6 +48,8 @@ class QuerySubscriptionPool
     return
 
   _scheduleCleanupCheckForSubscription: (key) =>
+    # We unlisten / relisten to lots of subscriptions and setTimeout is actually
+    # /not/ that fast. Create one timeout for all checks, not one for each.
     _.defer(@_runCleanupChecks) if @_cleanupChecks.length is 0
     @_cleanupChecks.push(key)
 

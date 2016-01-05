@@ -248,7 +248,7 @@ class NylasEnvConstructor extends Model
 
     # Since Bluebird is the promise library, we can properly report
     # unhandled errors from business logic inside promises.
-    # Promise.longStackTraces() unless @inSpecMode()
+    Promise.longStackTraces() unless @inSpecMode()
 
     Promise.onPossiblyUnhandledRejection (error) =>
       error.stack = convertStackTrace(error.stack, sourceMapCache)

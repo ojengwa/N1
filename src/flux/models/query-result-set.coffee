@@ -14,8 +14,9 @@ has every model.
 
 Offset vs Index:
 
-Note: To avoid confusion, "index" refers to an item's position in an
-array, and "offset" refers to it's position in the query result set.
+To avoid confusion, "index" refers to an item's position in an
+array, and "offset" refers to it's position in the query result set. For example,
+an item might be at index 20 in the _ids array, but at offset 120 in the result.
 ###
 class QueryResultSet
 
