@@ -1,6 +1,5 @@
 import {DraftStore, Actions, QuotedHTMLTransformer} from 'nylas-exports';
 import NylasStore from 'nylas-store';
-import shell from 'shell';
 import path from 'path';
 import fs from 'fs';
 
@@ -42,12 +41,12 @@ class TemplateStore extends NylasStore {
     fs.exists(this._templatesDir, (exists) => {
       if (exists) {
         this._populate();
-        this.watch()
+        this.watch();
       } else {
         fs.mkdir(this._templatesDir, () => {
           fs.readFile(this._welcomePath, (err, welcome) => {
             fs.writeFile(path.join(this._templatesDir, this._welcomeName), welcome, () => {
-              this.watch()
+              this.watch();
             });
           });
         });
@@ -56,8 +55,9 @@ class TemplateStore extends NylasStore {
   }
 
   watch() {
-    if(!this._watcher)
+    if (!this._watcher) {
       this._watcher = fs.watch(this._templatesDir, () => this._populate());
+    }
   }
   unwatch() {
     this._watcher.close();
@@ -103,7 +103,7 @@ class TemplateStore extends NylasStore {
     if (draftClientId) {
       DraftStore.sessionForClientId(draftClientId).then((session) => {
         const draft = session.draft();
-        const draftName = name ? name : draft.subject.replace(TemplateStore.INVALID_TEMPLATE_NAME_REGEX,"");
+        const draftName = name ? name : draft.subject.replace(TemplateStore.INVALID_TEMPLATE_NAME_REGEX, '');
         const draftContents = contents ? contents : QuotedHTMLTransformer.removeQuotedHTML(draft.body);
         if (!draftName || draftName.length === 0) {
           this._displayError('Give your draft a subject to name your template.');
@@ -115,44 +115,44 @@ class TemplateStore extends NylasStore {
       });
       return;
     }
-    if (!name || name.length === 0)
+    if (!name || name.length === 0) {
       this._displayError('You must provide a name for your template.');
-
-    if (!contents || contents.length === 0)
+    }
+    if (!contents || contents.length === 0) {
       this._displayError('You must provide contents for your template.');
-
+    }
     this.saveNewTemplate(name, contents, this._onShowTemplates);
   }
 
   _onShowTemplates() {
     Actions.switchPreferencesTab('Quick Replies');
-    Actions.openPreferences()
+    Actions.openPreferences();
   }
 
   _displayError(message) {
     const dialog = require('remote').require('dialog');
     dialog.showErrorBox('Template Creation Error', message);
   }
-  _displayDialog(title,message,buttons) {
+  _displayDialog(title, message, buttons) {
     const dialog = require('remote').require('dialog');
-    return 0==dialog.showMessageBox({
-          title: title,
-          message: title,
-          detail: message,
-          buttons: buttons,
-          type: 'info'
-        });
+    return (dialog.showMessageBox({
+      title: title,
+      message: title,
+      detail: message,
+      buttons: buttons,
+      type: 'info',
+    }) === 0);
   }
 
   saveNewTemplate(name, contents, callback) {
-    if(name.match(TemplateStore.INVALID_TEMPLATE_NAME_REGEX)) {
-      this._displayError("Invalid template name! Names can only contain letters, numbers, spaces, dashes, and underscores.");
+    if (name.match(TemplateStore.INVALID_TEMPLATE_NAME_REGEX)) {
+      this._displayError('Invalid template name! Names can only contain letters, numbers, spaces, dashes, and underscores.');
       return;
     }
 
-    var template = this._getTemplate(name);
-    if(template) {
-      this._displayError("A template with that name already exists!");
+    const template = this._getTemplate(name);
+    if (template) {
+      this._displayError('A template with that name already exists!');
       return;
     }
     this.saveTemplate(name, contents, callback);
@@ -160,9 +160,10 @@ class TemplateStore extends NylasStore {
   }
 
   _getTemplate(name, id) {
-    for(let template of this._items) {
-      if((template.name === name || name == null) && (template.id === id || id == null))
+    for (const template of this._items) {
+      if ((template.name === name || name === null) && (template.id === id || id === null)) {
         return template;
+      }
     }
     return null;
   }
@@ -171,7 +172,7 @@ class TemplateStore extends NylasStore {
     const filename = `${name}.html`;
     const templatePath = path.join(this._templatesDir, filename);
 
-    var template = this._getTemplate(name);
+    let template = this._getTemplate(name);
     this.unwatch();
     fs.writeFile(templatePath, contents, (err) => {
       this.watch();
@@ -180,38 +181,42 @@ class TemplateStore extends NylasStore {
         template = {
           id: filename,
           name: name,
-          path: templatePath
+          path: templatePath,
         };
         this._items.push(template);
       }
-      if(callback)
+      if (callback) {
         callback(template);
+      }
     });
   }
 
   deleteTemplate(name, callback) {
-    var template = this._getTemplate(name);
-    if (!template) { return undefined }
+    const template = this._getTemplate(name);
+    if (!template) { return undefined; }
 
-    if(this._displayDialog(
+    if (this._displayDialog(
         'Delete this template?',
         'The template and its file will be permanently deleted.',
-        ['Delete','Cancel']
-    ))
+        ['Delete', 'Cancel']
+    )) {
       fs.unlink(template.path, () => {
         this._populate();
-        if(callback)
-          callback()
+        if (callback) {
+          callback();
+        }
       });
+    }
   }
 
   renameTemplate(oldName, newName, callback) {
-    if(newName.match(TemplateStore.INVALID_TEMPLATE_NAME_REGEX)) {
-      this._displayError("Invalid template name! Names can only contain letters, numbers, spaces, dashes, and underscores.");
+    const template = this._getTemplate(oldName);
+    if (!template) { return; }
+
+    if (newName.match(TemplateStore.INVALID_TEMPLATE_NAME_REGEX)) {
+      this._displayError('Invalid template name! Names can only contain letters, numbers, spaces, dashes, and underscores.');
       return;
     }
-    var template = this._getTemplate(oldName);
-    if (!template) { return undefined }
 
     const newFilename = `${newName}.html`;
     const oldPath = path.join(this._templatesDir, `${oldName}.html`);
@@ -221,25 +226,25 @@ class TemplateStore extends NylasStore {
       template.id = newFilename;
       template.path = newPath;
       this.trigger(this);
-      callback(template)
+      callback(template);
     });
   }
 
   _onInsertTemplateId({templateId, draftClientId} = {}) {
     this.getTemplateContents(templateId, (body) => {
       DraftStore.sessionForClientId(draftClientId).then((session)=> {
-        var proceed = true;
+        let proceed = true;
         if (!session.draft().pristine) {
           proceed = this._displayDialog(
               'Replace draft contents?',
               'It looks like your draft already has some content. Loading this template will ' +
               'overwrite all draft contents.',
-              ['Replace contents','Cancel']
-          )
+              ['Replace contents', 'Cancel']
+          );
         }
 
-        if(proceed) {
-          draftHtml = QuotedHTMLTransformer.appendQuotedHTML(body, session.draft().body);
+        if (proceed) {
+          const draftHtml = QuotedHTMLTransformer.appendQuotedHTML(body, session.draft().body);
           session.changes.add({body: draftHtml});
         }
       });
@@ -247,8 +252,8 @@ class TemplateStore extends NylasStore {
   }
 
   getTemplateContents(templateId, callback) {
-    var template = this._getTemplate(null,templateId);
-    if (!template) { return undefined }
+    const template = this._getTemplate(null, templateId);
+    if (!template) { return; }
 
     fs.readFile(template.path, (err, data)=> {
       const body = data.toString();

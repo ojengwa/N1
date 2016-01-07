@@ -58,10 +58,11 @@ class TemplatesComposerExtension extends ComposerExtension {
           const treeWalker = document.createTreeWalker(editableNode, NodeFilter.SHOW_ELEMENT + NodeFilter.SHOW_TEXT);
           let curIndex = 0;
           let nextIndex = null;
-          let node;
-          while (node = treeWalker.nextNode()) {
+          let node = treeWalker.nextNode();
+          while (node) {
             if (sel.anchorNode === node || sel.focusNode === node) break;
             if (node.nodeName === 'CODE' && node.classList.contains('var')) curIndex++;
+            node = treeWalker.nextNode();
           }
           nextIndex = event.shiftKey ? curIndex - 1 : curIndex;
           nextIndex = (nextIndex + nodes.length) % nodes.length; // allow wraparound in both directions

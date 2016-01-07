@@ -64,10 +64,9 @@ class PhishingIndicator extends React.Component
 
       # This is our core logic for our whole package! If the `from` and
       # `replyTo` emails are different, then we want to show a phishing warning.
-      if reply_to isnt from
-          return [from, reply_to]
+      return [from, reply_to] if reply_to isnt from
 
-    return [null, null];
+    return [null, null]
 
 module.exports =
 

@@ -77,8 +77,8 @@ GithubUserStore = Reflux.createStore
       @_profile = @_cache[email] = profile
       @trigger(@)
 
-   # Wrap the Node `request` library and pass the User-Agent header, which is required
-   # by Github's API. Also pass `json:true`, which causes responses to be automatically
-   # parsed.
-   _githubRequest: (url, callback) ->
-      request({url: url, headers: {'User-Agent': 'request'}, json: true}, callback)
+  # Wrap the Node `request` library and pass the User-Agent header, which is required
+  # by Github's API. Also pass `json:true`, which causes responses to be automatically
+  # parsed.
+  _githubRequest: (url, callback) ->
+    request({url: url, headers: {'User-Agent': 'request'}, json: true}, callback)
