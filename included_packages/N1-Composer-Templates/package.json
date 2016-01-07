@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "main": "./lib/main",
 
+  "isOptional": true,
   "isStarterPackage": true,
+
   "title": "Templates",
   "description": "Create templates you can use to pre-fill the composer - never type the same email again!",
   "icon": "./icon.png",

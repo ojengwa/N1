@@ -43,15 +43,15 @@ class TabInstalled extends React.Component
           title="Installed"
           emptyText={searchEmpty ? <span>You don't have any plugins installed in ~/.nylas/packages.</span>} />
         <PackageSet
+          title="Built In"
+          packages={@state.packages.example} />
+        <PackageSet
           title="Development"
           packages={devPackages}
           emptyText={searchEmpty ? devEmpty} />
         <div className="new-package">
           {devCTA}
         </div>
-        <PackageSet
-          title="Core"
-          packages={@state.packages.core} />
       </div>
     </div>
 

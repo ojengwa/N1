@@ -1,4 +1,4 @@
-_ = require 'underscore-plus'
+_ = require 'underscore'
 GithubUserStore = require "./github-user-store"
 {React} = require 'nylas-exports'
 

@@ -41,6 +41,7 @@ class PackageManager
       @packageDirPaths.push(path.join(@resourcePath, "spec", "fixtures", "packages"))
     else
       @packageDirPaths.push(path.join(@resourcePath, "internal_packages"))
+      @packageDirPaths.push(path.join(@resourcePath, "examples"))
       if not safeMode
         if @devMode
           @packageDirPaths.push(path.join(configDirPath, "dev", "packages"))

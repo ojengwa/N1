@@ -77,15 +77,22 @@ class Application
     ###
     Temporary: Remove plugins with names of examples
     ###
-    if not @config.get('core.examplesEnabled')
+    if not @config.get('core.examplesMigrated')
       plugins = fs.readdirSync(path.join(@configDirPath, 'packages'))
       examples = fs.readdirSync(path.join(@resourcePath, 'examples'))
-      examplesEnabled = plugins.filter (pluginName) -> pluginName in examples and pluginName[0] isnt '.'
-      @config.set('core.examplesEnabled', examplesEnabled)
+
+      # Find the examples that are enabled
+      examplesEnabled = plugins.filter (pluginName) ->
+        pluginName in examples and pluginName[0] isnt '.'
+
+      # Disable examples not specifically enabled
+      for exampleName in examples
+        continue if exampleName in examplesEnabled
+        @config.pushAtKeyPath('core.disabledPackages', exampleName)
+      @config.set('core.examplesMigrated', examplesEnabled)
 
       deprecatedPath = path.join(@configDirPath, 'packages-deprecated')
       fs.mkdirSync(deprecatedPath) unless fs.existsSync(deprecatedPath)
-
       examplesEnabled.forEach (dir) =>
         prevPath = path.join(@configDirPath, 'packages', dir)
         nextPath = path.join(deprecatedPath, dir)

@@ -1,4 +1,4 @@
-_ = require 'underscore-plus'
+_ = require 'underscore'
 GithubContactCardSection = require "./github-contact-card-section"
 {ComponentRegistry,
  WorkspaceStore} = require "nylas-exports"

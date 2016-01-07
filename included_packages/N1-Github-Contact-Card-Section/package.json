@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "main": "./lib/main",
 
+  "isOptional": true,
   "isStarterPackage": true,
+
   "title": "Github",
   "description": "Extends the contact card in the sidebar to show public repos of the people you email.",
   "icon": "./icon.png",
@@ -19,6 +21,6 @@
   "dependencies": {
     "reflux": "0.1.13",
     "request": "^2.53",
-    "underscore-plus": "^1.6"
+    "underscore": "^1.8"
   }
 }

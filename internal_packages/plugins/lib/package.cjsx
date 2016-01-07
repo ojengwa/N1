@@ -16,7 +16,7 @@ class Package extends React.Component
     extras = []
 
     if @props.package.installed
-      if @props.package.category in ['user' ,'dev']
+      if @props.package.category in ['user' ,'dev', 'example']
         if @props.package.enabled
           actions.push <div className="btn btn-small" onClick={@_onDisablePackage}>Disable</div>
         else
@@ -31,7 +31,7 @@ class Package extends React.Component
     else
       actions.push <div className="btn btn-small" onClick={@_onInstallPackage}>Install</div>
 
-    {name, description} = @props.package
+    {name, description, title} = @props.package
 
     if @props.package.newerVersionAvailable
       extras.push(
@@ -44,7 +44,7 @@ class Package extends React.Component
     <div className="package">
       <div className="padded">
         <div className="actions">{actions}</div>
-        <div className="title">{name}</div>
+        <div className="title">{title ? name}</div>
         <div className="description">{description}</div>
       </div>
       {extras}

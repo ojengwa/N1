@@ -2,6 +2,7 @@
   "name": "PersonalLevelIndicators",
   "main": "./lib/main",
   "version": "0.1.0",
+  "isOptional": true,
   "repository": {
     "type": "git",
     "url": ""

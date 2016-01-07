@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "main": "./lib/main",
 
+  "isOptional": true,
   "isStarterPackage": true,
+
   "title": "Translation",
   "description": "Translate your drafts in the composer into other languages using the Yandex Translation API.",
   "icon": "./icon.png",
