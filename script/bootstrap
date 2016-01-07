@@ -188,8 +188,7 @@ function bootstrap() {
     // we need this because we don't put our modules in node_modules and npm
     // install doesn't find them. Run APM install on each package directory manually.
     [
-      path.resolve(__dirname, '..', 'internal_packages'),
-      path.resolve(__dirname, '..', 'examples')
+      path.resolve(__dirname, '..', 'internal_packages')
     ].forEach(function(packagesDir) {
       fs.readdirSync(packagesDir).forEach(function(dir) {
         var dirPackageJSONPath = path.join(packagesDir, dir, 'package.json');

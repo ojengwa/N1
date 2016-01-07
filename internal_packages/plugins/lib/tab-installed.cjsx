@@ -40,7 +40,7 @@ class TabInstalled extends React.Component
           placeholder="Search Installed Plugins"/>
         <PackageSet
           packages={@state.packages.user}
-          title="Installed"
+          title="Third Party"
           emptyText={searchEmpty ? <span>You don't have any plugins installed in ~/.nylas/packages.</span>} />
         <PackageSet
           title="Built In"

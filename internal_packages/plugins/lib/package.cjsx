@@ -1,6 +1,6 @@
 React = require 'react'
 _ = require 'underscore'
-
+{Flexbox} = require 'nylas-component-kit'
 PluginsActions = require './plugins-actions'
 
 class Package extends React.Component
@@ -41,14 +41,17 @@ class Package extends React.Component
         </div>
       )
 
-    <div className="package">
-      <div className="padded">
-        <div className="actions">{actions}</div>
+    <Flexbox className="package" direction="row">
+      <div className="icon" style={flexShink: 0}>
+        <img src="nylas://#{@props.package.name}/#{@props.package.icon}" style={width:50} />
+      </div>
+      <div className="info">
         <div className="title">{title ? name}</div>
         <div className="description">{description}</div>
       </div>
+      <div className="actions">{actions}</div>
       {extras}
-    </div>
+    </Flexbox>
 
   _onDisablePackage: =>
     PluginsActions.disablePackage(@props.package)
