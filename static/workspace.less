@@ -70,7 +70,7 @@ nylas-workspace {
 }
 
 .toolbar-window-controls {
-  margin-top:14px;
+  margin-top:9px;
   margin-left:@spacing-half;
   order: -1000;
   min-width: 72px;
@@ -147,6 +147,7 @@ body.is-blurred {
 
     .btn.btn-toolbar {
       background: none;
+      box-shadow: 0 0.5px 0 rgba(0,0,0,0.15), 0 -0.5px 0 rgba(0,0,0,0.15), 0.5px 0 0 rgba(0,0,0,0.15), -0.5px 0 0 rgba(0,0,0,0.15);
       img { opacity:0.5; }
     }
     .item-container {
@@ -180,12 +181,12 @@ body.is-blurred {
   -webkit-app-region: drag;
   border-bottom: 1px solid darken(@toolbar-background-color, 9%);
   width:  100%;
-  height: 50px;
+  height: 38px;
 
   // prevent flexbox from ever, ever resizing toolbars, no matter
   // how much it thinks other content is being squished
-  min-height: 50px;
-  max-height: 50px;
+  min-height: 38px;
+  max-height: 38px;
 
   // cover up the vertical resizing separators, so the toolbar appears
   // to be one continuous bar.
@@ -236,11 +237,15 @@ body.is-blurred {
   }
 
   .btn-toolbar {
-    margin-top: @spacing-three-quarters;
+    margin-top: 8px;
     margin-left: @spacing-three-quarters;
     margin-right: 0;
     flex-shrink: 0;
-    height:28px;
+    line-height: 0;
+    padding-bottom:0;
+    padding-top:0;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+    height:22px;
   }
 
   .btn-toolbar:only-of-type {
@@ -298,7 +303,6 @@ body.is-blurred {
   cursor: row-resize;
   div {
     width:100%;
-    // border-top: 1px solid @border-color-divider;
   }
   &.flexbox-handle-top {
     top:-3px;
