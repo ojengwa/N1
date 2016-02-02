@@ -1,0 +1,23 @@
+{
+  "name": "send-later",
+  "version": "0.0.1",
+  "main": "./lib/main",
+
+  "isOptional": true,
+  "isStarterPackage": true,
+
+  "title": "Send Later",
+  "description": "Delay the sending of a message to a later date & time. Will work even if N1 is closed.",
+  "icon": "./icon.png",
+
+  "description": "Send Later",
+  "license": "GPL-3.0",
+  "private": true,
+  "engines": {
+    "nylas": "*"
+  },
+  "windowTypes": {
+    "default": true,
+    "composer": true
+  }
+}
