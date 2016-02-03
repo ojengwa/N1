@@ -2,20 +2,20 @@ import {
   Task,
   NylasAPI,
   APIError,
-  Metadata,
+  Metadatum,
   DatabaseStore,
   SyncbackModelTask,
   DatabaseTransaction } from 'nylas-exports'
 
 class TestTask extends SyncbackModelTask {
   getModelConstructor() {
-    return Metadata
+    return Metadatum
   }
 }
 
 describe("SyncbackModelTask", () => {
   beforeEach(() => {
-    this.testModel = new Metadata({accountId: 'account-123'})
+    this.testModel = new Metadatum({accountId: 'account-123'})
     spyOn(DatabaseTransaction.prototype, "persistModel")
     spyOn(DatabaseStore, "findBy")
     .andReturn(Promise.resolve(this.testModel));
@@ -86,7 +86,7 @@ describe("SyncbackModelTask", () => {
 
     it("gets the correct path and method for existing objects", () => {
       jasmine.unspy(DatabaseStore, "findBy")
-      const serverModel = new Metadata({localId: 'local-123', serverId: 'server-123'})
+      const serverModel = new Metadatum({localId: 'local-123', serverId: 'server-123'})
 
       spyOn(DatabaseStore, "findBy").andReturn(Promise.resolve(serverModel));
 
@@ -114,7 +114,7 @@ describe("SyncbackModelTask", () => {
     it("lets tasks override path and method", () => {
       class TaskMethodAndPath extends SyncbackModelTask {
         getModelConstructor() {
-          return Metadata
+          return Metadatum
         }
         getPathAndMethod = () => {
           return {

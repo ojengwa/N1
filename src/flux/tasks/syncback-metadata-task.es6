@@ -1,9 +1,9 @@
-import Metadata from '../models/metadata'
+import Metadatum from '../models/metadata'
 import SyncbackModelTask from './syncback-model-task'
 
 export default class SyncbackMetadataTask extends SyncbackModelTask {
   getModelConstructor() {
-    return Metadata
+    return Metadatum
   }
 
   getPathAndMethod = (model) => {

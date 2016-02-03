@@ -5,15 +5,15 @@ import Attributes from '../attributes'
  Cloud-persisted data that is associated with a single Nylas API object
  (like a `Thread`, `Message`, or `Account`).
 
- Each Nylas API object can have exactly one `Metadata` object associated
+ Each Nylas API object can have exactly one `Metadatum` object associated
  with it. If you update the metadata object on an existing associated
  Nylas API object, it will override the previous `value`
 */
-export default class Metadata extends Model {
+export default class Metadatum extends Model {
   static attributes = Object.assign({}, Model.attributes, {
     /*
-    The unique ID of the plugin that owns this Metadata item. The Nylas
-    N1 Database holds the Metadata objects for many of its installed
+    The unique ID of the plugin that owns this Metadatum item. The Nylas
+    N1 Database holds the Metadatum objects for many of its installed
     plugins.
     */
     applicationId: Attributes.String({
@@ -23,7 +23,7 @@ export default class Metadata extends Model {
     }),
 
     /*
-    The type of Nylas API object this Metadata item is associated with.
+    The type of Nylas API object this Metadatum item is associated with.
     Should be the lowercase singular classname of an object like
     `thread` or `message`, or `account`
     */
@@ -41,9 +41,9 @@ export default class Metadata extends Model {
     }),
 
     /*
-    The current version of this `Metadata` object. Note that since Nylas
-    API objects can only have exactly one `Metadata` object attached to
-    it, any action preformed on the `Metadata` of a Nylas API object
+    The current version of this `Metadatum` object. Note that since Nylas
+    API objects can only have exactly one `Metadatum` object attached to
+    it, any action preformed on the `Metadatum` of a Nylas API object
     will override the existing object and bump the `version`.
     */
     version: Attributes.Number({

@@ -1,5 +1,5 @@
 import {
-  Metadata,
+  Metadatum,
   NylasAPI,
   DatabaseStore,
   UpdateModelTask,
@@ -7,7 +7,7 @@ import {
 
 describe("UpdateModelTask", () => {
   beforeEach(() => {
-    this.existingModel = new Metadata({key: "foo", value: "bar"})
+    this.existingModel = new Metadatum({key: "foo", value: "bar"})
     this.existingModel.clientId = "local-123"
     this.existingModel.serverId = "server-123"
     spyOn(DatabaseTransaction.prototype, "persistModel")
@@ -19,7 +19,7 @@ describe("UpdateModelTask", () => {
       clientId: "local-123",
       newData: {value: "baz"},
       accountId: "a123",
-      modelName: "Metadata",
+      modelName: "Metadatum",
       endpoint: "/endpoint",
     }
   });

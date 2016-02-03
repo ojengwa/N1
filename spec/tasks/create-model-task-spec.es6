@@ -28,7 +28,7 @@ describe("CreateModelTask", () => {
 
     it("throws if `requiredFields` are missing", () => {
       const accountId = "a123"
-      const modelName = "Metadata"
+      const modelName = "Metadatum"
       const endpoint = "/endpoint"
       const data = {foo: "bar"}
       const requiredFields = ["stuff"]
@@ -59,7 +59,7 @@ describe("CreateModelTask", () => {
     it("persists the new model properly", () => {
       const persistFn = DatabaseTransaction.prototype.persistModel
       const accountId = "a123"
-      const modelName = "Metadata"
+      const modelName = "Metadatum"
       const endpoint = "/endpoint"
       const data = {value: "bar"}
       const requiredFields = ["value"]
@@ -77,7 +77,7 @@ describe("CreateModelTask", () => {
 
   describe("performRemote", () => {
     const accountId = "a123"
-    const modelName = "Metadata"
+    const modelName = "Metadatum"
     const endpoint = "/endpoint"
     const data = {value: "bar"}
 
@@ -141,7 +141,7 @@ describe("CreateModelTask", () => {
 
   describe("undo", () => {
     const accountId = "a123"
-    const modelName = "Metadata"
+    const modelName = "Metadatum"
     const endpoint = "/endpoint"
     const data = {key: "foo", value: "bar"}
 

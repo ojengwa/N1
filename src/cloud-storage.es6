@@ -3,7 +3,7 @@ import Rx from 'rx-lite'
 import {
   Model,
   Actions,
-  Metadata,
+  Metadatum,
   DatabaseStore,
   SyncbackMetadataTask} from 'nylas-exports'
 
@@ -17,8 +17,8 @@ import {
  *
  * On the Nylas API server this is backed by the `/metadata` endpoint.
  *
- * It is automatically locally replicated and synced with the `Metadata`
- * Database table.
+ * It is automatically locally replicated and synced with the 
+ * `Metadatum` Database table.
  *
  * Every interaction with the metadata service is automatically scoped
  * by both your unique Plugin ID.
@@ -90,7 +90,7 @@ export default class CloudStorage {
    */
   associateMetadata({objects, data}) {
     const objectsToAssociate = this._resolveObjects(objects)
-    DatabaseStore.findAll(Metadata,
+    DatabaseStore.findAll(Metadatum,
                          {objectId: _.pluck(objectsToAssociate, "id")})
     .then((existingMetadata = []) => {
       const metadataByObjectId = {}
@@ -102,7 +102,7 @@ export default class CloudStorage {
       for (const objectToAssociate of objectsToAssociate) {
         let metadatum = metadataByObjectId[objectToAssociate.id]
         if (!metadatum) {
-          metadatum = this._newMetadataObject(objectToAssociate)
+          metadatum = this._newMetadatumObject(objectToAssociate)
         } else {
           metadatum = this._validateMetadatum(metadatum, objectToAssociate)
         }
@@ -112,7 +112,7 @@ export default class CloudStorage {
 
       return DatabaseStore.inTransaction((t) => {
         return t.persistModels(metadata).then(() => {
-          return this._syncbackMetadata(metadata)
+          return this._syncbacketadata(metadata)
         })
       });
     })
@@ -125,11 +125,11 @@ export default class CloudStorage {
    * @param {array} props.objects - an array of one or more objects to
    * load metadata for (if there is any)
    * @returns Promise that resolves to an array of zero or more matching
-   * {Metadata} objects.
+   * {Metadatum} objects.
    */
   getMetadata({objects}) {
     const associatedObjects = this._resolveObjects(objects)
-    return DatabaseStore.findAll(Metadata,
+    return DatabaseStore.findAll(Metadatum,
                          {objectId: _.pluck(associatedObjects, "id")})
   }
 
@@ -142,11 +142,11 @@ export default class CloudStorage {
    * @returns Rx.Observable object that you can call `subscribe` on to
    * subscribe to any changes on the matching query. The onChange callback
    * you pass to subscribe will be passed an array of zero or more
-   * matching {Metadata} objects.
+   * matching {Metadatum} objects.
    */
   observeMetadata({objects}) {
     const associatedObjects = this._resolveObjects(objects)
-    const q = DatabaseStore.findAll(Metadata,
+    const q = DatabaseStore.findAll(Metadatum,
                          {objectId: _.pluck(associatedObjects, "id")})
     return Rx.Observable.fromQuery(q)
   }
@@ -160,8 +160,8 @@ export default class CloudStorage {
     }
   }
 
-  _newMetadataObject(objectToAssociate) {
-    return new Metadata({
+  _newMetadatumObject(objectToAssociate) {
+    return new Metadatum({
       applicationId: this.applicationId,
       objectType: this._typeFromObject(objectToAssociate),
       objectId: objectToAssociate.id,
@@ -180,8 +180,8 @@ export default class CloudStorage {
       return metadatum
     }
 
-    NylasEnv.emitError(new Error(`Metadata object ${metadatum.id} doesn't match data for associated object ${objectToAssociate.id}. Automatically correcting to match.`, toMatch))
-    const json = this._newMetadataObject(objectToAssociate).toJSON()
+    NylasEnv.emitError(new Error(`Metadatum object ${metadatum.id} doesn't match data for associated object ${objectToAssociate.id}. Automatically correcting to match.`, toMatch))
+    const json = this._newMetadatumObject(objectToAssociate).toJSON()
     metadatum.fromJSON(json)
     return metadatum
   }
