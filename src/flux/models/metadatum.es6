@@ -33,11 +33,18 @@ export default class Metadatum extends Model {
       jsonKey: 'object_type',
     }),
 
-    // The unique public ID of the Nylas API object.
-    objectId: Attributes.String({
+    /**
+     * The ID of the associated Nylas API object.
+     *
+     * NOTE: The associated objectID can be either a local `clientId` or a
+     * `serverId`. In the case of a draft.
+     *
+     */
+    objectId: Attributes.HybridForeignKey({
       queryable: true,
       modelKey: 'objectId',
       jsonKey: 'object_id',
+      classConstructor: Metadatum,
     }),
 
     /*

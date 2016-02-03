@@ -9,6 +9,7 @@ AttributeDateTime = require './attributes/attribute-datetime'
 AttributeCollection = require './attributes/attribute-collection'
 AttributeJoinedData = require './attributes/attribute-joined-data'
 AttributeServerId = require './attributes/attribute-serverid'
+AttributeHybridForeignKey = require './attributes/attribute-hybrid-foreign-key'
 
 module.exports =
   Matcher: Matcher
@@ -22,6 +23,7 @@ module.exports =
   Collection: -> new AttributeCollection(arguments...)
   JoinedData: -> new AttributeJoinedData(arguments...)
   ServerId: -> new AttributeServerId(arguments...)
+  HybridForeignKey: -> new AttributeHybridForeignKey(arguments...)
 
   AttributeNumber: AttributeNumber
   AttributeString: AttributeString
@@ -31,3 +33,4 @@ module.exports =
   AttributeCollection: AttributeCollection
   AttributeJoinedData: AttributeJoinedData
   AttributeServerId: AttributeServerId
+  AttributeHybridForeignKey: AttributeHybridForeignKey

@@ -1,6 +1,7 @@
 import _ from 'underscore'
 import Task from './task'
 import NylasAPI from '../nylas-api'
+import Actions from '../actions'
 import {APIError} from '../errors'
 import DatabaseStore from '../stores/database-store'
 
@@ -73,22 +74,32 @@ export default class SyncbackModelTask extends Task {
     }
   }
 
+  /**
+   * Updates the localModel with new data from the Database
+   *
+   * NOTE: It's important that we override only the version and new
+   * serverId of an object. The API may have taken a long time and in the
+   * meantime, the local object may have updated. It's important we're
+   * updating the latest object.
+   *
+   * We also don't want to update any field other then the version and id.
+   * If other fields have gotten out of sync, we defer to the ones on the
+   * client (since that's what the user sees). This is important for
+   * objects like Drafts.
+   *
+   * We also need to notify when the serverId changes
+   */
   updateLocalModel = ({version, id}) => {
-    /*
-    Important: There could be a significant delay between us initiating
-    the save and getting JSON back from the server. Our local copy of
-    the model may have already changed more.
-
-    The only fields we want to update from the server are the `id` and
-    `version`.
-    */
     return DatabaseStore.inTransaction((t) => {
       return this.getLatestModel().then((model) => {
         // Model may have been deleted
         if (!model) { return Promise.resolve() }
 
         model.version = version
-        model.serverId = id
+        if (model.serverId !== id) {
+          model.serverId = id;
+          Actions.serverIdUpdated({clientId: model.clientId, serverId: id})
+        }
         return t.persistModel(model)
       })
     }).thenReturn(true)

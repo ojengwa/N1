@@ -99,6 +99,8 @@ class DatabaseStore extends NylasStore
 
     @_databaseMutationHooks = []
 
+    @_setupForeignKeyRegistration()
+
     # Listen to events from the application telling us when the database is ready,
     # should be closed so it can be deleted, etc.
     ipcRenderer.on('database-phase-change', @_onPhaseChange)
@@ -505,6 +507,10 @@ class DatabaseStore extends NylasStore
 
     return @_triggerPromise
 
+  _setupForeignKeyRegistration: ->
+
+  registerHybridForeignKey: ({modelKey, classConstructor}) ->
+    @_
 
 module.exports = new DatabaseStore()
 module.exports.ChangeRecord = DatabaseChangeRecord

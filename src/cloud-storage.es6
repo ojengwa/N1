@@ -17,7 +17,7 @@ import {
  *
  * On the Nylas API server this is backed by the `/metadata` endpoint.
  *
- * It is automatically locally replicated and synced with the 
+ * It is automatically locally replicated and synced with the
  * `Metadatum` Database table.
  *
  * Every interaction with the metadata service is automatically scoped
@@ -89,7 +89,10 @@ export default class CloudStorage {
    * @param {object} props.data - arbitray JSON-serializable data.
    */
   associateMetadata({objects, data}) {
+    // NOTE: Some of these objects may be local only (like drafts). They
+    // will only have a `clientId` and no `serverId`
     const objectsToAssociate = this._resolveObjects(objects)
+
     DatabaseStore.findAll(Metadatum,
                          {objectId: _.pluck(objectsToAssociate, "id")})
     .then((existingMetadata = []) => {
