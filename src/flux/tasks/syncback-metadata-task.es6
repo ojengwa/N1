@@ -1,4 +1,4 @@
-import Metadatum from '../models/metadata'
+import Metadatum from '../models/metadatum'
 import SyncbackModelTask from './syncback-model-task'
 
 export default class SyncbackMetadataTask extends SyncbackModelTask {

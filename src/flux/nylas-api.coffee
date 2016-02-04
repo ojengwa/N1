@@ -330,7 +330,7 @@ class NylasAPI
     "message": require('./models/message')
     "contact": require('./models/contact')
     "calendar": require('./models/calendar')
-    "metadata": require('./models/metadata')
+    "metadata": require('./models/metadatum')
 
   getThreads: (accountId, params = {}, requestOptions = {}) ->
     requestSuccess = requestOptions.success

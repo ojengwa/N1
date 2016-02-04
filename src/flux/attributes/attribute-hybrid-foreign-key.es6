@@ -1,5 +1,5 @@
 import AttributeString from './attribute-string'
-import HybridForeignKeyManager from './hybrid-foreign-key-manager'
+import HybridForeignKeyManager from '../../hybrid-foreign-key-manager'
 
 /**
  * Public: The value of this attribute is always a string or `null`.

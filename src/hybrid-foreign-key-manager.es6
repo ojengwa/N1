@@ -1,13 +1,12 @@
-import NylasStore from 'nylas-store'
 import Actions from './flux/actions'
 
-class HybridForeignKeyManager extends NylasStore {
+class HybridForeignKeyManager {
   constructor() {
     this.foreignKeys = []
-    this.listenTo(Actions.objectIdUpdated, this._onObjectIdUpdated)
+    Actions.objectIdUpdated.listen(this._onObjectIdUpdated)
   }
 
-  registerKey(attributeProps) {
+  register(attributeProps) {
     this.foreignKeys.push(attributeProps)
   }
 
