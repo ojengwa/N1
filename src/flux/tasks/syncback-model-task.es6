@@ -98,7 +98,7 @@ export default class SyncbackModelTask extends Task {
         model.version = version
         if (model.serverId !== id) {
           model.serverId = id;
-          Actions.serverIdUpdated({clientId: model.clientId, serverId: id})
+          Actions.objectIdUpdated({oldId: model.clientId, newId: id})
         }
         return t.persistModel(model)
       })

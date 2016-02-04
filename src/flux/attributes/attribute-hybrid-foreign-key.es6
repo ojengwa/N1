@@ -1,4 +1,5 @@
 import AttributeString from './attribute-string'
+import HybridForeignKeyManager from './hybrid-foreign-key-manager'
 
 /**
  * Public: The value of this attribute is always a string or `null`.
@@ -10,9 +11,8 @@ import AttributeString from './attribute-string'
  *
  */
 export default class AttributeHybridForeignKey extends AttributeString {
-  constructor({modelKey, queryable, jsonKey, classConstructor}) {
-    super({modelKey, queryable, jsonKey})
-    const DatabaseStore = require('../stores/database-store')
-    DatabaseStore.registerHybridForeignKey({modelKey, classConstructor})
+  constructor(props) {
+    super(props)
+    HybridForeignKeyManager.register(props)
   }
 }

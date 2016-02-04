@@ -503,6 +503,12 @@ class Actions
   @deleteMailRule: ActionScopeWindow
   @disableMailRule: ActionScopeWindow
 
+  ###
+  Public: notify when an object's id has been updated. Anything keeping a
+  reference to this object must update its foreign key.
+  ###
+  @objectIdUpdated: ActionScopeWindow
+
 # Read the actions we declared on the dummy Actions object above
 # and translate them into Reflux Actions
 
