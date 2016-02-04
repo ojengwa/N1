@@ -5,6 +5,7 @@ Task = require './task'
 Actions = require '../actions'
 File = require '../models/file'
 Message = require '../models/message'
+Metadata = require '../models/metadata'
 NylasAPI = require '../nylas-api'
 TaskQueue = require '../stores/task-queue'
 {APIError} = require '../errors'
@@ -159,11 +160,20 @@ class SendDraftTask extends Task
         return Promise.reject(err)
 
     .then (newMessageJSON) =>
-      message = new Message().fromJSON(newMessageJSON)
-      message.clientId = @draft.clientId
-      message.draft = false
-      DatabaseStore.inTransaction (t) =>
-        t.persistModel(message)
+      DatabaseStore.findAll(Metadata, {objectId: @draft.id}).then (metadatas) =>
+        message = new Message().fromJSON(newMessageJSON)
+        message.clientId = @draft.clientId
+        message.draft = false
+
+        for metadata in metadatas
+          metadata.objectId = message.id #TODO may not need this?
+
+        DatabaseStore.inTransaction (t) =>
+          t.persistModel(message)
+          t.persistModels(metadatas)
+
+        Actions.sendDraftSuccess
+          draft: message
 
   # We DON'T need to delete the local draft because we turn it into a message
   # by writing the new message into the database with the same clientId.
@@ -186,8 +196,6 @@ class SendDraftTask extends Task
       Promise.resolve()
 
   _onSuccess: =>
-    Actions.sendDraftSuccess
-      draftClientId: @draft.clientId
 
     # Delete attachments from the uploads folder
     for upload in @uploaded
