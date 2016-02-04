@@ -115,7 +115,7 @@ export default class CloudStorage {
 
       return DatabaseStore.inTransaction((t) => {
         return t.persistModels(metadata).then(() => {
-          return this._syncbacketadata(metadata)
+          return this._syncbackMetadata(metadata)
         })
       });
     })
