@@ -1,10 +1,10 @@
 {
-  "name": "open-tracking",
+  "name": "link-tracking",
   "main": "./lib/main",
   "version": "0.1.0",
 
-  "title": "Open Tracking",
-  "description": "Tracks whether email messages have been opened by recipients",
+  "title": "Link Tracking",
+  "description": "Tracks whether links in an email have been clicked by recipients",
   "icon": "./icon.png",
   "isOptional": true,
 

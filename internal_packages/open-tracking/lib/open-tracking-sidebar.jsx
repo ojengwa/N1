@@ -1,4 +1,4 @@
-import {Utils, React, FocusedContactsStore} from 'nylas-exports'
+import {Utils, React, DraftStore} from 'nylas-exports'
 import {RetinaImg} from 'nylas-component-kit'
 
 export default class OpenTrackingSidebar extends React.Component {
@@ -51,7 +51,7 @@ export default class OpenTrackingSidebar extends React.Component {
     });
   }
 
-  _onMetadataChange=(metadata)=> {
+  _onMetadataChange=([metadata])=> {
 
   };
 

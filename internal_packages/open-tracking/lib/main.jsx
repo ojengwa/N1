@@ -8,11 +8,11 @@ import uuid from 'node-uuid';
 post = Promise.promisify(request.post, {multiArgs: true});
 
 
-function metadataComponent(componentClass, cloudStorage) {
+function metadataComponent(ComponentClass, cloudStorage) {
   return class extends React.Component {
-    static displayName = componentClass.displayName;
+    static displayName = ComponentClass.displayName;
     render() {
-      return <componentClass {...this.props} cloudStorage={cloudStorage} />
+      return <ComponentClass {...this.props} cloudStorage={cloudStorage} />
     }
   }
 }
@@ -25,18 +25,15 @@ class DraftBody {
   set body(body) {this._body = body}
 }
 
-let BoundOpenTrackingIcon;
-let BoundOpenTrackingSidebar;
-let OpenTrackingComposerExtension;
-
 let _unlistenSendDraftSuccess = null;
 function afterDraftSend(message) {
   //grab message metadata, if any
-  cloudStorage.getMetadata({objects:[message]}).then((metadata) => {
+  cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
+    let value = metadata.value;
 
     //get the uid from the metadata, if present
-    if(!metadata) return Promise.resolve();
-    let uid = metadata.uid;
+    if(!value) return Promise.resolve();
+    let uid = value.uid;
 
     //set metadata against thread for fast lookup
     cloudStorage.associateMetadata({
@@ -69,31 +66,34 @@ function afterDraftSend(message) {
 }
 
 export function activate(localState = {}, cloudStorage = {}) {
-  BoundOpenTrackingIcon = metadataComponent(OpenTrackingIcon,cloudStorage);
-  BoundOpenTrackingSidebar = metadataComponent(OpenTrackingSidebar,cloudStorage);
-  ComponentRegistry.register(OpenTrackingButton, {role: 'Composer:ActionButton'});
-  ComponentRegistry.register(BoundOpenTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
-  ComponentRegistry.register(BoundOpenTrackingIcon, {role: 'ThreadListIcon'});
+  this.BoundOpenTrackingIcon = metadataComponent(OpenTrackingIcon,cloudStorage);
+  this.BoundOpenTrackingButton = metadataComponent(OpenTrackingButton,cloudStorage);
+  this.BoundOpenTrackingSidebar = metadataComponent(OpenTrackingSidebar,cloudStorage);
+  ComponentRegistry.register(this.BoundOpenTrackingButton, {role: 'Composer:ActionButton'});
+  ComponentRegistry.register(this.BoundOpenTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
+  ComponentRegistry.register(this.BoundOpenTrackingIcon, {role: 'ThreadListIcon'});
   _unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(afterDraftSend);
 
-  OpenTrackingComposerExtension = class extends ComposerExtension {
+  this.OpenTrackingComposerExtension = class extends ComposerExtension {
     finalizeSessionBeforeSending({session}) {
       const draft = session.draft();
 
       //grab message metadata, if any
-      return cloudStorage.getMetadata({objects:[draft]}).then((metadata) => {
+      return cloudStorage.getMetadata({objects:[draft]}).then(([metadata]) => {
+
+        let value = metadata.value;
 
         //only take action if there's metadata
-        if(metadata) {
+        if(value) {
 
           //generate a UID
           let uid = uuid.v4();
 
           //save the uid to draft metadata
-          metadata.uid = uid;
+          value.uid = uid;
           return cloudStorage.associateMetadata({
             objects: [draft],
-            data: metadata
+            data: value
           }).then(() => {
 
             //insert a tracking pixel <img> into the message
@@ -111,15 +111,15 @@ export function activate(localState = {}, cloudStorage = {}) {
     }
   };
 
-  ExtensionRegistry.Composer.register(OpenTrackingComposerExtension);
+  ExtensionRegistry.Composer.register(this.OpenTrackingComposerExtension);
 }
 
 export function serialize() {}
 
 export function deactivate() {
-  ComponentRegistry.unregister(OpenTrackingButton);
-  ComponentRegistry.unregister(OpenTrackingSidebar);
-  ComponentRegistry.unregister(BoundOpenTrackingIcon);
-  ExtensionRegistry.Composer.unregister(OpenTrackingComposerExtension);
+  ComponentRegistry.unregister(this.BoundOpenTrackingButton);
+  ComponentRegistry.unregister(this.BoundOpenTrackingSidebar);
+  ComponentRegistry.unregister(this.BoundOpenTrackingIcon);
+  ExtensionRegistry.Composer.unregister(this.OpenTrackingComposerExtension);
   _unlistenSendDraftSuccess()
 }

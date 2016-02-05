@@ -1,9 +1,9 @@
-import {Utils, DraftStore, React} from 'nylas-exports'
+import {Utils, React, DraftStore} from 'nylas-exports'
 import {RetinaImg} from 'nylas-component-kit'
 
-export default class OpenTrackingButton extends React.Component {
+export default class LinkTrackingSidebar extends React.Component {
 
-  static displayName = 'OpenTrackingButton';
+  static displayName = 'LinkTrackingSidebar';
 
   static propTypes = {
     cloudStorage: React.PropTypes.object,
@@ -12,7 +12,7 @@ export default class OpenTrackingButton extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = {enabled: false};
+    this.state = {};
     this._observerSubscription = null;
   }
 
@@ -29,18 +29,13 @@ export default class OpenTrackingButton extends React.Component {
   }
 
   render() {
-    return <button className={`btn btn-toolbar ${this.state.enabled ? "btn-action" : ""}`}
-                   onClick={this._onClick} title="Open Tracking">
-      <RetinaImg url="nylas://open-tracking/assets/opentracking-icon@2x.png"
-                 mode={RetinaImg.Mode.ContentIsMask} />
-    </button>
+    return ""
   }
 
   _setMetadataObserver(props) {
     //look up the draft object
     DraftStore.sessionForClientId(props.draftClientId).then(session => {
       let draft = session.draft();
-      //set an observer on the object's metadata
 
       //trigger a change on the accociated metadata
       props.cloudStorage.getMetadata({objects:[draft]}).then(this._onMetadataChange);
@@ -55,25 +50,8 @@ export default class OpenTrackingButton extends React.Component {
     });
   }
 
-  _onClick=()=> {
-    let currentlyEnabled = this.state.enabled;
-
-    //trigger an immediate change for better UI
-    this.setState({enabled: !currentlyEnabled});
-
-    //write metadata into the draft to indicate tracked state
-    DraftStore.sessionForClientId(this.props.draftClientId).then(session => {
-      let draft = session.draft();
-      if(currentlyEnabled)
-      this.props.cloudStorage.associateMetadata({
-        objects:[draft],
-        data:(currentlyEnabled ? null : {tracked:true})
-      })
-    });
-  };
-
   _onMetadataChange=([metadata])=> {
-    this.setState({enabled: metadata ? metadata.value : false})
-  };
-}
 
+  };
+
+}

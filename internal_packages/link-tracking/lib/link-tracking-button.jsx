@@ -1,9 +1,9 @@
 import {Utils, DraftStore, React} from 'nylas-exports'
 import {RetinaImg} from 'nylas-component-kit'
 
-export default class OpenTrackingButton extends React.Component {
+export default class LinkTrackingButton extends React.Component {
 
-  static displayName = 'OpenTrackingButton';
+  static displayName = 'LinkTrackingButton';
 
   static propTypes = {
     cloudStorage: React.PropTypes.object,
@@ -30,8 +30,8 @@ export default class OpenTrackingButton extends React.Component {
 
   render() {
     return <button className={`btn btn-toolbar ${this.state.enabled ? "btn-action" : ""}`}
-                   onClick={this._onClick} title="Open Tracking">
-      <RetinaImg url="nylas://open-tracking/assets/opentracking-icon@2x.png"
+                   onClick={this._onClick} title="Link Tracking">
+      <RetinaImg url="nylas://link-tracking/assets/linktracking-icon@2x.png"
                  mode={RetinaImg.Mode.ContentIsMask} />
     </button>
   }
@@ -64,7 +64,6 @@ export default class OpenTrackingButton extends React.Component {
     //write metadata into the draft to indicate tracked state
     DraftStore.sessionForClientId(this.props.draftClientId).then(session => {
       let draft = session.draft();
-      if(currentlyEnabled)
       this.props.cloudStorage.associateMetadata({
         objects:[draft],
         data:(currentlyEnabled ? null : {tracked:true})
@@ -72,7 +71,7 @@ export default class OpenTrackingButton extends React.Component {
     });
   };
 
-  _onMetadataChange=([metadata])=> {
+  _onMetadataChange=(metadata)=> {
     this.setState({enabled: metadata ? metadata.value : false})
   };
 }
