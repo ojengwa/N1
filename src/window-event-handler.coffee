@@ -51,6 +51,7 @@ class WindowEventHandler
       # Don't hide the window here if we don't want the renderer process to be
       # throttled in case more work needs to be done before closing
       @reloadRequested = false
+      console.log("beforeunload called")
       return @runUnloadCallbacks()
 
     @subscribe $(window), 'unload', =>
@@ -129,14 +130,15 @@ class WindowEventHandler
       else if returnValue isnt true
         console.warn "You registered an `onBeforeUnload` callback that does not return either exactly `true` or `false`. It returned #{returnValue}", callback
 
-    return (unloadCallbacksRunning > 0)
+    # In Electron, returning false cancels the close.
+    return (unloadCallbacksRunning is 0)
 
   runUnloadFinished: ->
-    _.defer =>
+    _.defer ->
       if remote.getGlobal('application').quitting
         remote.require('app').quit()
       else
-        @close()
+        NylasEnv.close()
 
   # Wire commands that should be handled by Chromium for elements with the
   # `.override-key-bindings` class.

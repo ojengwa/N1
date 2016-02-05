@@ -3,8 +3,13 @@ DatabaseStore = require '../stores/database-store'
 QueryRange = require './query-range'
 MutableQueryResultSet = require './mutable-query-result-set'
 
+MUID = 0
+
 class QuerySubscription
   constructor: (@_query, @_options = {}) ->
+    @_muid = MUID
+    MUID += 1
+
     @_set = null
     @_callbacks = []
     @_lastResult = null
@@ -114,6 +119,8 @@ class QuerySubscription
       @update()
     else if knownImpacts > 0
       @_createResultAndTrigger()
+    else
+      console.log("#{@_muid}: processing: decided not to do anything.")
 
   _itemSortOrderHasChanged: (old, updated) ->
     for descriptor in @_query.orderSortDescriptors()
@@ -169,6 +176,7 @@ class QuerySubscription
       if allChangesApplied and allCompleteModels and allUniqueIds
         @_createResultAndTrigger()
       else
+        console.log("#{@_muid}: allChangesApplied: #{allChangesApplied} - going to process records again")
         @_processChangeRecords()
 
   cancelPendingUpdate: =>

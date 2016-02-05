@@ -17,6 +17,7 @@ class MailRulesStore extends NylasStore
 
     query = DatabaseStore.findJSONBlob(RulesJSONBlobKey)
     @_subscription = Rx.Observable.fromQuery(query).subscribe (rules) =>
+      console.log("Retrieved Mail Rules: #{rules.length}")
       @_rules = rules ? []
       @trigger()
 
