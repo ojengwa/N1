@@ -7,7 +7,6 @@ export default class OpenTrackingSidebar extends React.Component {
 
   static propTypes = {
     cloudStorage: React.PropTypes.object,
-    draftClientId: React.PropTypes.string.isRequired
   };
 
   constructor(props) {
@@ -32,14 +31,11 @@ export default class OpenTrackingSidebar extends React.Component {
     return ""
   }
 
+  //set an observer on the object's metadata
   _setMetadataObserver(props) {
-    //look up the draft object
-    DraftStore.sessionForClientId(props.draftClientId).then(session => {
-      let draft = session.draft();
-      //set an observer on the object's metadata
 
-      //trigger a change on the accociated metadata
-      props.cloudStorage.getMetadata({objects:[draft]}).then(this._onMetadataChange);
+      //trigger a change on the associated metadata
+      props.cloudStorage.getMetadata({objects:[props.thread]}).then(this._onMetadataChange);
 
       //if we already had subscribed to something, unsubscribe first
       if(this._observerSubscription) this._observerSubscription.dispose();
@@ -48,7 +44,6 @@ export default class OpenTrackingSidebar extends React.Component {
       this._observerSubscription = props.cloudStorage
         .observeMetadata({objects:[draft]})
         .subscribe(this._onMetadataChange)
-    });
   }
 
   _onMetadataChange=([metadata])=> {

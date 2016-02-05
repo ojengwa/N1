@@ -1,4 +1,4 @@
-import {ComponentRegistry, ExtensionRegistry, ComposerExtension, React, Actions} from 'nylas-exports';
+import {ComponentRegistry, DatabaseStore, Thread, ExtensionRegistry, ComposerExtension, React, Actions} from 'nylas-exports';
 import LinkTrackingButton from './link-tracking-button';
 import LinkTrackingSidebar from './link-tracking-sidebar';
 import LinkTrackingIcon from './link-tracking-message-icon';
@@ -26,59 +26,13 @@ class DraftBody {
   set body(body) {this._body = body}
 }
 
-let _unlistenSendDraftSuccess = null;
-function afterDraftSend(message) {
-  //grab message metadata, if any
-  cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
-
-    const value = metadata.value;
-
-    //get the uid from the metadata, if present
-    if(!value) return Promise.resolve();
-    let uid = value.uid;
-
-    //set metadata against thread for fast lookup
-    cloudStorage.associateMetadata({
-      objects: [message.thread],
-      data: {tracked: true}
-    });
-
-    //update metadata against the message
-    for(const link of value.links) {
-      link.click_count = 0;
-      link.click_data = [];
-    }
-    cloudStorage.associateMetadata({
-      objects: [message],
-      data: value
-    });
-
-    //post the uid and message id pair to the plugin server
-    let data = {uid: uid, message_id:message.id};
-    let serverUrl = `http://${PLUGIN_URL}/register-message`;
-    _get({
-      url: serverUrl,
-      body: JSON.stringify(data)
-    }).then(args => {
-      if(args[0].statusCode != 200)
-        throw new Error();
-      return args[1];
-    }).catch(error => {
-      const dialog = require('remote').require('dialog');
-      dialog.showErrorBox("There was a problem contacting the Link Tracking server! This message will not have link tracking");
-      Promise.reject(error);
-    });
-  });
-}
-
 export function activate(localState = {}, cloudStorage = {}) {
   this.BoundLinkTrackingButton = metadataComponent(LinkTrackingButton,cloudStorage);
   this.BoundLinkTrackingIcon = metadataComponent(LinkTrackingIcon,cloudStorage);
-  this.BoundLinkTrackingSidebar = metadataComponent(LinkTrackingSidebar,cloudStorage);
+  //this.BoundLinkTrackingSidebar = metadataComponent(LinkTrackingSidebar,cloudStorage);
   ComponentRegistry.register(this.BoundLinkTrackingButton, {role: 'Composer:ActionButton'});
-  ComponentRegistry.register(this.BoundLinkTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
+  //ComponentRegistry.register(this.BoundLinkTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
   ComponentRegistry.register(this.BoundLinkTrackingIcon, {role: 'ThreadListIcon'});
-  _unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(afterDraftSend);
 
   this.LinkTrackingComposerExtension = class extends ComposerExtension {
     finalizeSessionBeforeSending({session}) {
@@ -87,7 +41,7 @@ export function activate(localState = {}, cloudStorage = {}) {
       //grab message metadata, if any
       return cloudStorage.getMetadata({objects:[draft]}).then(([metadata]) => {
 
-        const value = metadata.value;
+        const value = metadata ? metadata.value : null;
 
         //only take action if there's metadata
         if(value) {
@@ -123,16 +77,62 @@ export function activate(localState = {}, cloudStorage = {}) {
       });
     }
   };
-
   ExtensionRegistry.Composer.register(this.LinkTrackingComposerExtension);
+
+  this.afterDraftSend = function ({draft:message}) {
+    //grab message metadata, if any
+    cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
+
+      const value = metadata ? metadata.value : null;
+
+      //get the uid from the metadata, if present
+      if(!value) return Promise.resolve();
+      let uid = value.uid;
+
+      //set metadata against thread for fast lookup
+      DatabaseStore.findAll(Thread, {threadId: [message.threadId]}).then(([thread]) => {
+        return cloudStorage.associateMetadata({
+          objects: [thread],
+          data: {tracked: true}
+        });
+      });
+
+      //update metadata against the message
+      for(const link of value.links) {
+        link.click_count = 0;
+        link.click_data = [];
+      }
+      cloudStorage.associateMetadata({
+        objects: [message],
+        data: value
+      });
+
+      //post the uid and message id pair to the plugin server
+      let data = {uid: uid, message_id:message.id};
+      let serverUrl = `http://${PLUGIN_URL}/register-message`;
+      _get({
+        url: serverUrl,
+        body: JSON.stringify(data)
+      }).then(args => {
+        if(args[0].statusCode != 200)
+          throw new Error();
+        return args[1];
+      }).catch(error => {
+        const dialog = require('remote').require('dialog');
+        dialog.showErrorBox("There was a problem contacting the Link Tracking server! This message will not have link tracking");
+        Promise.reject(error);
+      });
+    });
+  }
+  this._unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(this.afterDraftSend);
 }
 
 export function serialize() {}
 
 export function deactivate() {
   ComponentRegistry.unregister(this.BoundLinkTrackingButton);
-  ComponentRegistry.unregister(this.BoundLinkTrackingSidebar);
+  //ComponentRegistry.unregister(this.BoundLinkTrackingSidebar);
   ComponentRegistry.unregister(this.BoundLinkTrackingIcon);
   ExtensionRegistry.Composer.unregister(this.LinkTrackingComposerExtension);
-  _unlistenSendDraftSuccess()
+  this._unlistenSendDraftSuccess()
 }

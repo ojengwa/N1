@@ -1,4 +1,4 @@
-import {ComponentRegistry, ExtensionRegistry, ComposerExtension, React, Actions} from 'nylas-exports';
+import {ComponentRegistry, ExtensionRegistry, DatabaseStore, Thread, ComposerExtension, React, Actions} from 'nylas-exports';
 import OpenTrackingButton from './open-tracking-button';
 import OpenTrackingSidebar from './open-tracking-sidebar';
 import OpenTrackingIcon from './open-tracking-message-icon';
@@ -25,54 +25,13 @@ class DraftBody {
   set body(body) {this._body = body}
 }
 
-let _unlistenSendDraftSuccess = null;
-function afterDraftSend(message) {
-  //grab message metadata, if any
-  cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
-    let value = metadata.value;
-
-    //get the uid from the metadata, if present
-    if(!value) return Promise.resolve();
-    let uid = value.uid;
-
-    //set metadata against thread for fast lookup
-    cloudStorage.associateMetadata({
-      objects: [message.thread],
-      data: {tracked: true}
-    });
-
-    //set metadata against the message
-    cloudStorage.associateMetadata({
-      objects: [message],
-      data: {open_count: 0, open_data: []}
-    });
-
-    //post the uid and message id pair to the plugin server
-    let data = {uid: uid, message_id:message.id};
-    let serverUrl = `http://${PLUGIN_URL}/register-message`;
-    post({
-      url: serverUrl,
-      body: JSON.stringify(data)
-    }).then(args => {
-      if(args[0].statusCode != 200)
-        throw new Error();
-      return args[1];
-    }).catch(error => {
-      dialog = require('remote').require('dialog');
-      dialog.showErrorBox("There was a problem contacting the Open Tracking server! This message will not have open tracking :(");
-      Promise.reject(error);
-    });
-  });
-}
-
 export function activate(localState = {}, cloudStorage = {}) {
   this.BoundOpenTrackingIcon = metadataComponent(OpenTrackingIcon,cloudStorage);
   this.BoundOpenTrackingButton = metadataComponent(OpenTrackingButton,cloudStorage);
-  this.BoundOpenTrackingSidebar = metadataComponent(OpenTrackingSidebar,cloudStorage);
+  //this.BoundOpenTrackingSidebar = metadataComponent(OpenTrackingSidebar,cloudStorage);
   ComponentRegistry.register(this.BoundOpenTrackingButton, {role: 'Composer:ActionButton'});
-  ComponentRegistry.register(this.BoundOpenTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
+  //ComponentRegistry.register(this.BoundOpenTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
   ComponentRegistry.register(this.BoundOpenTrackingIcon, {role: 'ThreadListIcon'});
-  _unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(afterDraftSend);
 
   this.OpenTrackingComposerExtension = class extends ComposerExtension {
     finalizeSessionBeforeSending({session}) {
@@ -81,7 +40,7 @@ export function activate(localState = {}, cloudStorage = {}) {
       //grab message metadata, if any
       return cloudStorage.getMetadata({objects:[draft]}).then(([metadata]) => {
 
-        let value = metadata.value;
+        const value = metadata ? metadata.value : null;
 
         //only take action if there's metadata
         if(value) {
@@ -112,14 +71,57 @@ export function activate(localState = {}, cloudStorage = {}) {
   };
 
   ExtensionRegistry.Composer.register(this.OpenTrackingComposerExtension);
+
+
+  this.afterDraftSend = function({draft:message}) {
+    //grab message metadata, if any
+    cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
+      const value = metadata ? metadata.value : null;
+
+      //get the uid from the metadata, if present
+      if(!value) return Promise.resolve();
+      let uid = value.uid;
+
+      //set metadata against thread for fast lookup
+      DatabaseStore.findAll(Thread, {threadId: [message.threadId]}).then(([thread]) => {
+        cloudStorage.associateMetadata({
+          objects: [message.thread],
+          data: {tracked: true}
+        });
+      });
+
+      //set metadata against the message
+      cloudStorage.associateMetadata({
+        objects: [message],
+        data: {open_count: 0, open_data: []}
+      });
+
+      //post the uid and message id pair to the plugin server
+      let data = {uid: uid, message_id:message.id};
+      let serverUrl = `http://${PLUGIN_URL}/register-message`;
+      post({
+        url: serverUrl,
+        body: JSON.stringify(data)
+      }).then(args => {
+        if(args[0].statusCode != 200)
+          throw new Error();
+        return args[1];
+      }).catch(error => {
+        dialog = require('remote').require('dialog');
+        dialog.showErrorBox("There was a problem contacting the Open Tracking server! This message will not have open tracking :(");
+        Promise.reject(error);
+      });
+    });
+  }
+  this._unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(this.afterDraftSend);
 }
 
 export function serialize() {}
 
 export function deactivate() {
   ComponentRegistry.unregister(this.BoundOpenTrackingButton);
-  ComponentRegistry.unregister(this.BoundOpenTrackingSidebar);
+  //ComponentRegistry.unregister(this.BoundOpenTrackingSidebar);
   ComponentRegistry.unregister(this.BoundOpenTrackingIcon);
   ExtensionRegistry.Composer.unregister(this.OpenTrackingComposerExtension);
-  _unlistenSendDraftSuccess()
+  this._unlistenSendDraftSuccess()
 }
