@@ -1,0 +1,11 @@
+{
+  "name": "n1-send-later",
+  "version": "1.0.0",
+  "description": "send email later",
+  "main": "lib/main",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Juan Tejada <juans.tejada@gmail.com>",
+  "license": "ISC"
+}
