@@ -56,6 +56,7 @@ export default class LinkTrackingButton extends React.Component {
   }
 
   _onClick=()=> {
+    NylasStore.authPlugin(this.props.cloudStorage.pluginId, "Link Tracking",)
     let currentlyEnabled = this.state.enabled;
 
     //trigger an immediate change for better UI
