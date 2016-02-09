@@ -31,7 +31,7 @@ export default class OpenTrackingButton extends React.Component {
   render() {
     return <button className={`btn btn-toolbar ${this.state.enabled ? "btn-action" : ""}`}
                    onClick={this._onClick} title="Open Tracking">
-      <RetinaImg url="nylas://open-tracking/assets/opentracking-icon@2x.png"
+      <RetinaImg url="nylas://open-tracking/assets/envelope-open-icon@2x.png"
                  mode={RetinaImg.Mode.ContentIsMask} />
     </button>
   }
@@ -59,12 +59,12 @@ export default class OpenTrackingButton extends React.Component {
     let currentlyEnabled = this.state.enabled;
 
     //trigger an immediate change for better UI
-    this.setState({enabled: !currentlyEnabled});
+    //this.setState({enabled: !currentlyEnabled});
 
     //write metadata into the draft to indicate tracked state
     DraftStore.sessionForClientId(this.props.draftClientId).then(session => {
       let draft = session.draft();
-      if(currentlyEnabled)
+      console.log("OPENTRACKING: writing metadata for draft",draft);
       this.props.cloudStorage.associateMetadata({
         objects:[draft],
         data:(currentlyEnabled ? null : {tracked:true})
@@ -73,6 +73,7 @@ export default class OpenTrackingButton extends React.Component {
   };
 
   _onMetadataChange=([metadata])=> {
+    console.log("OPENTRACKING: got metadata change",metadata);
     this.setState({enabled: metadata ? metadata.value : false})
   };
 }

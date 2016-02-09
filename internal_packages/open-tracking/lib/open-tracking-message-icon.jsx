@@ -52,6 +52,7 @@ export default class OpenTrackingIcon extends React.Component {
   };
 
   _onMetadataChange=([metadata])=> {
-    this.setState({opened: metadata ? metadata.value.open_count : null});
+    console.log("got metadata",metadata);
+    this.setState({opened: metadata ? metadata.value.opened : null});
   };
 }

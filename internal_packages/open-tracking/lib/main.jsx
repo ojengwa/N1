@@ -39,6 +39,7 @@ export function activate(localState = {}, cloudStorage = {}) {
 
       //grab message metadata, if any
       return cloudStorage.getMetadata({objects:[draft]}).then(([metadata]) => {
+        console.log("OPENTRACKING: got metadata for draft",draft,metadata);
 
         const value = metadata ? metadata.value : null;
 
@@ -49,6 +50,7 @@ export function activate(localState = {}, cloudStorage = {}) {
           let uid = uuid.v4();
 
           //save the uid to draft metadata
+          console.log("OPENTRACKING: created UID");
           value.uid = uid;
           return cloudStorage.associateMetadata({
             objects: [draft],
@@ -76,6 +78,7 @@ export function activate(localState = {}, cloudStorage = {}) {
   this.afterDraftSend = function({draft:message}) {
     //grab message metadata, if any
     cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
+      console.log("OPENTRACKING: got metadata for message",message,metadata);
       const value = metadata ? metadata.value : null;
 
       //get the uid from the metadata, if present
@@ -83,10 +86,11 @@ export function activate(localState = {}, cloudStorage = {}) {
       let uid = value.uid;
 
       //set metadata against thread for fast lookup
-      DatabaseStore.findAll(Thread, {threadId: [message.threadId]}).then(([thread]) => {
+      DatabaseStore.findAll(Thread).where({id: [message.threadId]}).then(([thread]) => {
+        console.log("associating metadata to thread", thread);
         cloudStorage.associateMetadata({
-          objects: [message.thread],
-          data: {tracked: true}
+          objects: [thread],
+          data: {opened: false}
         });
       });
 
