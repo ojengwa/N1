@@ -8,12 +8,12 @@ export default class LinkTrackingIcon extends React.Component {
 
   constructor(props) {
     super(props);
-    let metadata = props.thread.getMetadata(plugin.appId);
+    let metadata = props.thread.metadataForPluginId(plugin.appId);
     this.state = {enabled: metadata ? metadata.tracked : false};
   }
 
   componentWillReceiveProps(newProps) {
-    let metadata = newProps.thread.getMetadata(plugin.appId);
+    let metadata = newProps.thread.metadataForPluginId(plugin.appId);
     this.setState({enabled: metadata ? metadata.tracked : false});
   }
 

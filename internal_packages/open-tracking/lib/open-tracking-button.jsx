@@ -27,7 +27,7 @@ export default class OpenTrackingButton extends React.Component {
     if(draftClientId)
       DraftStore.sessionForClientId(draftClientId).then(session => {
         let draft = session.draft();
-        let metadata = draft.getMetadata(PLUGIN_ID);
+        let metadata = draft.metadataForPluginId(PLUGIN_ID);
         this.setState({enabled: metadata ? metadata.tracked : false});
       });
   }

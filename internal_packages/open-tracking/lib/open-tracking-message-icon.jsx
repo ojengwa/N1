@@ -8,12 +8,12 @@ export default class OpenTrackingIcon extends React.Component {
 
   constructor(props) {
     super(props);
-    let metadata = props.thread.getMetadata(plugin.appId);
+    let metadata = props.thread.metadataForPluginId(plugin.appId);
     this.state = {opened: metadata ? metadata.opened : null};
   }
 
   componentWillReceiveProps(newProps) {
-    let metadata = newProps.thread.getMetadata(plugin.appId);
+    let metadata = newProps.thread.metadataForPluginId(plugin.appId);
     this.setState({opened: metadata ? metadata.opened : null});
   }
 

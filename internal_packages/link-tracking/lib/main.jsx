@@ -19,7 +19,7 @@ class DraftBody {
 
 function afterDraftSend({draft}) {
   //grab message metadata, if any
-  const metadata = draft.getMetadata(PLUGIN_ID);
+  const metadata = draft.metadataForPluginId(PLUGIN_ID);
 
   //get the uid from the metadata, if present
   if(metadata){
@@ -60,7 +60,7 @@ class LinkTrackingComposerExtension extends ComposerExtension {
     const draft = session.draft();
 
     //grab message metadata, if any
-    const metadata = draft.getMetadata(PLUGIN_ID);
+    const metadata = draft.metadataForPluginId(PLUGIN_ID);
 
     //only take action if there's metadata
     if(metadata) {

@@ -18,7 +18,7 @@ class DraftBody {
 
 function afterDraftSend({draft}) {
   //grab message metadata, if any
-  const metadata = draft.getMetadata(PLUGIN_ID);
+  const metadata = draft.metadataForPluginId(PLUGIN_ID);
 
   //get the uid from the metadata, if present
   if(metadata){
@@ -55,7 +55,7 @@ class OpenTrackingComposerExtension extends ComposerExtension {
     const draft = session.draft();
 
     //grab message metadata, if any
-    let metadata = draft.getMetadata(PLUGIN_ID);
+    let metadata = draft.metadataForPluginId(PLUGIN_ID);
     if(metadata) {
       //generate a UID
       let uid = uuid.v4();
