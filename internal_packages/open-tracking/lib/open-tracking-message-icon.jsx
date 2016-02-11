@@ -1,5 +1,6 @@
 import {Utils, React} from 'nylas-exports'
 import {RetinaImg} from 'nylas-component-kit'
+import plugin from '../package.json'
 
 export default class OpenTrackingIcon extends React.Component {
 
@@ -7,33 +8,13 @@ export default class OpenTrackingIcon extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = {opened: null};
-    this._observerSubscription = null;
-  }
-
-  componentWillMount() {
-    this._setMetadataObserver(this.props)
+    let metadata = props.thread.getMetadata(plugin.appId);
+    this.state = {opened: metadata ? metadata.opened : null};
   }
 
   componentWillReceiveProps(newProps) {
-    this._setMetadataObserver(newProps)
-  }
-
-  componentWillUnmount() {
-    if(this._observerSubscription) this._observerSubscription.dispose();
-  }
-
-  _setMetadataObserver(props) {
-      //trigger a change on the accociated metadata
-      props.cloudStorage.getMetadata({objects:[props.thread]}).then(this._onMetadataChange);
-
-      //if we already had subscribed to something, unsubscribe first
-      if(this._observerSubscription) this._observerSubscription.dispose();
-
-      //now subscribe to the new metadata
-      this._observerSubscription = props.cloudStorage
-        .observeMetadata({objects:[props.thread]})
-        .subscribe(this._onMetadataChange)
+    let metadata = newProps.thread.getMetadata(plugin.appId);
+    this.setState({opened: metadata ? metadata.opened : null});
   }
 
   render() {
@@ -51,8 +32,4 @@ export default class OpenTrackingIcon extends React.Component {
     return this.state.opened==null ? "" : (this.state.opened ? openedIcon : unopenedIcon);
   };
 
-  _onMetadataChange=([metadata])=> {
-    console.log("got metadata",metadata);
-    this.setState({opened: metadata ? metadata.value.opened : null});
-  };
 }

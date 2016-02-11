@@ -1,22 +1,13 @@
 import {ComponentRegistry, DatabaseStore, Thread, ExtensionRegistry, ComposerExtension, React, Actions} from 'nylas-exports';
 import LinkTrackingButton from './link-tracking-button';
-import LinkTrackingSidebar from './link-tracking-sidebar';
 import LinkTrackingIcon from './link-tracking-message-icon';
+import plugin from '../package.json'
 
 import request from 'request';
 import uuid from 'node-uuid';
-const _post = Promise.promisify(request.post, {multiArgs: true});
-const _get = Promise.promisify(request.get, {multiArgs: true});
+const post = Promise.promisify(request.post, {multiArgs: true});
+const PLUGIN_ID = plugin.appId;
 
-
-function metadataComponent(ComponentClass, cloudStorage) {
-  return class extends React.Component {
-    static displayName = ComponentClass.displayName;
-    render() {
-      return <ComponentClass {...this.props} cloudStorage={cloudStorage} />
-    }
-  }
-}
 
 class DraftBody {
   constructor(draft) {this._body = draft.body}
@@ -26,113 +17,91 @@ class DraftBody {
   set body(body) {this._body = body}
 }
 
-export function activate(localState = {}, cloudStorage = {}) {
-  this.BoundLinkTrackingButton = metadataComponent(LinkTrackingButton,cloudStorage);
-  this.BoundLinkTrackingIcon = metadataComponent(LinkTrackingIcon,cloudStorage);
-  //this.BoundLinkTrackingSidebar = metadataComponent(LinkTrackingSidebar,cloudStorage);
-  ComponentRegistry.register(this.BoundLinkTrackingButton, {role: 'Composer:ActionButton'});
-  //ComponentRegistry.register(this.BoundLinkTrackingSidebar, {role: 'MessageListSidebar:ContactCard'});
-  ComponentRegistry.register(this.BoundLinkTrackingIcon, {role: 'ThreadListIcon'});
+function afterDraftSend({draft}) {
+  //grab message metadata, if any
+  const metadata = draft.getMetadata(PLUGIN_ID);
 
-  this.LinkTrackingComposerExtension = class extends ComposerExtension {
-    finalizeSessionBeforeSending({session}) {
-      const draft = session.draft();
+  //get the uid from the metadata, if present
+  if(metadata){
+    let uid = metadata.uid;
 
-      //grab message metadata, if any
-      return cloudStorage.getMetadata({objects:[draft]}).then(([metadata]) => {
+    //set metadata against thread for fast lookup
+    DatabaseStore.find(Thread, draft.threadId).then((thread) => {
+      Actions.setMetadata(thread, PLUGIN_ID, {tracked:true});
+    });
 
-        const value = metadata ? metadata.value : null;
-
-        //only take action if there's metadata
-        if(value) {
-
-          let draftBody = new DraftBody(draft);
-          let links = {};
-          let message_uid = uuid.v4();
-
-          //loop through all <a href> elements, replace with redirect links and save mappings
-          draftBody.unquoted = draftBody.unquoted.replace(/(<a .*?href=")(.*?)(".*?>)/g, (match, prefix, url, suffix, offset) => {
-            //generate a UID
-            let uid = uuid.v4();
-            let encoded = encodeURIComponent(url);
-            let redirectUrl = `http://${PLUGIN_URL}/${accountId}/${message_uid}/${uid}?redirect=${encoded}"`;
-            links[uid] = {url:url};
-            return prefix+redirectUrl+suffix;
-          });
-
-          //save the draft
-          session.changes.add({body: draftBody.body});
-          session.changes.commit();
-
-          //save the link info to draft metadata
-          value.uid = uid_message_uid;
-          value.links = links;
-          return cloudStorage.associateMetadata({
-            objects: [draft],
-            data: value
-          });
-        }
-        else
-          Promise.resolve();
-      });
+    //update metadata against the message
+    for(const link of metadata.links) {
+      link.click_count = 0;
+      link.click_data = [];
     }
-  };
-  ExtensionRegistry.Composer.register(this.LinkTrackingComposerExtension);
+    Actions.setMetadata(draft, PLUGIN_ID, metadata);
 
-  this.afterDraftSend = function ({draft:message}) {
-    //grab message metadata, if any
-    cloudStorage.getMetadata({objects:[message]}).then(([metadata]) => {
-
-      const value = metadata ? metadata.value : null;
-
-      //get the uid from the metadata, if present
-      if(!value) return Promise.resolve();
-      let uid = value.uid;
-
-      //set metadata against thread for fast lookup
-      DatabaseStore.findAll(Thread, {threadId: [message.threadId]}).then(([thread]) => {
-        return cloudStorage.associateMetadata({
-          objects: [thread],
-          data: {tracked: true}
-        });
-      });
-
-      //update metadata against the message
-      for(const link of value.links) {
-        link.click_count = 0;
-        link.click_data = [];
-      }
-      cloudStorage.associateMetadata({
-        objects: [message],
-        data: value
-      });
-
-      //post the uid and message id pair to the plugin server
-      let data = {uid: uid, message_id:message.id};
-      let serverUrl = `http://${PLUGIN_URL}/register-message`;
-      _get({
-        url: serverUrl,
-        body: JSON.stringify(data)
-      }).then(args => {
-        if(args[0].statusCode != 200)
-          throw new Error();
-        return args[1];
-      }).catch(error => {
-        const dialog = require('remote').require('dialog');
-        dialog.showErrorBox("There was a problem contacting the Link Tracking server! This message will not have link tracking");
-        Promise.reject(error);
-      });
+    //post the uid and message id pair to the plugin server
+    let data = {uid: uid, message_id:draft.id};
+    let serverUrl = `http://${PLUGIN_URL}/register-message`;
+    return post({
+      url: serverUrl,
+      body: JSON.stringify(data)
+    }).then(args => {
+      if(args[0].statusCode != 200)
+        throw new Error();
+      return args[1];
+    }).catch(error => {
+      const dialog = require('remote').require('dialog');
+      dialog.showErrorBox("There was a problem contacting the Link Tracking server! This message will not have link tracking");
+      Promise.reject(error);
     });
   }
-  this._unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(this.afterDraftSend);
+}
+
+class LinkTrackingComposerExtension extends ComposerExtension {
+  finalizeSessionBeforeSending({session}) {
+    const draft = session.draft();
+
+    //grab message metadata, if any
+    const metadata = draft.getMetadata(PLUGIN_ID);
+
+    //only take action if there's metadata
+    if(metadata) {
+      let draftBody = new DraftBody(draft);
+      let links = {};
+      let message_uid = uuid.v4();
+
+      //loop through all <a href> elements, replace with redirect links and save mappings
+      draftBody.unquoted = draftBody.unquoted.replace(/(<a .*?href=")(.*?)(".*?>)/g, (match, prefix, url, suffix, offset) => {
+        //generate a UID
+        let uid = uuid.v4();
+        let encoded = encodeURIComponent(url);
+        let redirectUrl = `http://${PLUGIN_URL}/${accountId}/${message_uid}/${uid}?redirect=${encoded}"`;
+        links[uid] = {url:url};
+        return prefix+redirectUrl+suffix;
+      });
+
+      //save the draft
+      session.changes.add({body: draftBody.body});
+      session.changes.commit();
+
+      //save the link info to draft metadata
+      metadata.uid = message_uid;
+      metadata.links = links;
+      Actions.setMetadata(draft, PLUGIN_ID, metadata);
+    }
+  }
+}
+
+export function activate() {
+  ComponentRegistry.register(LinkTrackingButton, {role: 'Composer:ActionButton'});
+  ComponentRegistry.register(LinkTrackingIcon, {role: 'ThreadListIcon'});
+  ExtensionRegistry.Composer.register(LinkTrackingComposerExtension);
+  this._unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(afterDraftSend);
 }
 
 export function serialize() {}
 
 export function deactivate() {
-  ComponentRegistry.unregister(this.BoundLinkTrackingButton);
-  //ComponentRegistry.unregister(this.BoundLinkTrackingSidebar);
-  ComponentRegistry.unregister(this.BoundLinkTrackingIcon);
-  ExtensionRegistry.Composer.unregister(this.LinkTrackingComposerExtension);
+  ComponentRegistry.unregister(LinkTrackingButton);
+  ComponentRegistry.unregister(LinkTrackingIcon);
+  ExtensionRegistry.Composer.unregister(LinkTrackingComposerExtension);
   this._unlistenSendDraftSuccess()
 }

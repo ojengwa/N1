@@ -16,6 +16,10 @@
   "engines": {
     "nylas": ">=0.3.46"
   },
+  "windowTypes": {
+    "default": true,
+    "composer": true
+  },
   "dependencies": {},
   "license": "MIT"
 }

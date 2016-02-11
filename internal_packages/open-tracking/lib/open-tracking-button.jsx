@@ -1,5 +1,7 @@
-import {Utils, DraftStore, React} from 'nylas-exports'
+import {Utils, DraftStore, React, Actions, NylasAPI} from 'nylas-exports'
 import {RetinaImg} from 'nylas-component-kit'
+import plugin from '../package.json'
+const PLUGIN_ID = plugin.appId;
 
 export default class OpenTrackingButton extends React.Component {
 
@@ -13,19 +15,21 @@ export default class OpenTrackingButton extends React.Component {
   constructor(props) {
     super(props);
     this.state = {enabled: false};
-    this._observerSubscription = null;
-  }
-
-  componentWillMount() {
-    this._setMetadataObserver(this.props)
+    this.setStateFromDraftId(props.draftClientId);
   }
 
   componentWillReceiveProps(newProps) {
-    this._setMetadataObserver(newProps)
+    this.setStateFromDraftId(newProps.draftClientId);
   }
 
-  componentWillUnmount() {
-    if(this._observerSubscription) this._observerSubscription.dispose();
+
+  setStateFromDraftId(draftClientId) {
+    if(draftClientId)
+      DraftStore.sessionForClientId(draftClientId).then(session => {
+        let draft = session.draft();
+        let metadata = draft.getMetadata(PLUGIN_ID);
+        this.setState({enabled: metadata ? metadata.tracked : false});
+      });
   }
 
   render() {
@@ -36,45 +40,19 @@ export default class OpenTrackingButton extends React.Component {
     </button>
   }
 
-  _setMetadataObserver(props) {
-    //look up the draft object
-    DraftStore.sessionForClientId(props.draftClientId).then(session => {
-      let draft = session.draft();
-      //set an observer on the object's metadata
-
-      //trigger a change on the accociated metadata
-      props.cloudStorage.getMetadata({objects:[draft]}).then(this._onMetadataChange);
-
-      //if we already had subscribed to something, unsubscribe first
-      if(this._observerSubscription) this._observerSubscription.dispose();
-
-      //now subscribe to the new metadata
-      this._observerSubscription = props.cloudStorage
-        .observeMetadata({objects:[draft]})
-        .subscribe(this._onMetadataChange)
-    });
-  }
-
   _onClick=()=> {
     let currentlyEnabled = this.state.enabled;
 
     //trigger an immediate change for better UI
-    //this.setState({enabled: !currentlyEnabled});
+    this.setState({enabled: !currentlyEnabled});
 
     //write metadata into the draft to indicate tracked state
-    DraftStore.sessionForClientId(this.props.draftClientId).then(session => {
-      let draft = session.draft();
-      console.log("OPENTRACKING: writing metadata for draft",draft);
-      this.props.cloudStorage.associateMetadata({
-        objects:[draft],
-        data:(currentlyEnabled ? null : {tracked:true})
-      })
-    });
-  };
-
-  _onMetadataChange=([metadata])=> {
-    console.log("OPENTRACKING: got metadata change",metadata);
-    this.setState({enabled: metadata ? metadata.value : false})
+    DraftStore.sessionForClientId(this.props.draftClientId)
+      .then(session => session.draft())
+      .then(draft => {
+        return NylasAPI.authPlugin(PLUGIN_ID, plugin.title, draft.accountId).then(() => {
+          Actions.setMetadata(draft, PLUGIN_ID, currentlyEnabled ? null : {tracked:true});
+        });
+      });
   };
 }
-
