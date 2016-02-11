@@ -1,0 +1,28 @@
+{
+  "name": "snooze-plugin",
+  "version": "1.0.0",
+  "title": "N1 Snooze",
+  "description": "Snooze mail!",
+  "main": "lib/main.es6",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/nylas/n1"
+  },
+  "keywords": [
+    "mailbox",
+    "n1",
+    "nylas",
+    "plugin",
+    "n1-plugin",
+    "n1-snooze",
+    "n1 snooze",
+    "snooze"
+  ],
+  "engines": {
+    "nylas": ">=0.3.0 <0.5.0"
+  },
+  "license": "GPL-3.0"
+}

@@ -1,0 +1,22 @@
+@import "ui-variables";
+
+.SnoozePopover {
+  .snooze-container {
+    display: flex;
+    flex-direction: column;
+
+    .snooze-item {
+      padding: 7px 17px;
+      cursor: default;
+      min-width: 175px;
+      background-color: @background-primary;
+
+      &+.snooze-item {
+        border-top: 1px solid @border-color-divider;
+      }
+      &:hover {
+        background-color: @background-secondary;
+      }
+    }
+  }
+}
