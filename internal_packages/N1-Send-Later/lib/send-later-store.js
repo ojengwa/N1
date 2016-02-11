@@ -1,21 +1,28 @@
 /** @babel */
-import {Message, DatabaseStore} from 'nylas-exports'
+import {NylasAPI, Actions, Message, DatabaseStore} from 'nylas-exports'
 import SendLaterActions from './send-later-actions'
 
 
+const PLUGIN_ID = "aqx344zhdh6jyabqokejknkvr"
+const PLUGIN_NAME = "Send Later"
+
 class SendLaterStore {
 
-  constructor(cloudStorage) {
-    this.storage = cloudStorage
+  constructor(pluginId = PLUGIN_ID) {
+    this.pluginId = pluginId
     SendLaterActions.sendLater.listen(this.onSendLater)
   }
 
-  onSendLater(draftClientId, sendLaterDate) {
+  onSendLater = (draftClientId, sendLaterDate)=> {
     DatabaseStore.modelify(Message, [draftClientId])
     .then((messages)=> {
-      this.storage.associateMetadata({objects: messages, data: sendLaterDate})
+      const {accountId} = messages[0]
+      return NylasAPI.authPlugin(this.pluginId, PLUGIN_NAME, accountId)
+      .then(()=> {
+        Actions.setMetadata(messages, this.pluginId, {sendLaterDate})
+      })
     })
-  }
+  };
 }
 
 

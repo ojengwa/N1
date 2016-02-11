@@ -1,12 +1,55 @@
+@import "ui-variables";
 
-.send-later-button {
-
+.send-later {
   .send-later-container {
     display: flex;
-    padding: 10px 20px;
+    flex-direction: column;
+    padding: 10px 0;
+    width: 100%;
+
+    .divider {
+      border-top: 1px solid @border-color-divider;
+      margin: 10px 0;
+      width: 90%;
+      align-self: center;
+    }
+
+    .send-later-input {
+      padding: 0 10px;
+      display: flex;
+      flex-direction: column;
+
+      label {
+        margin-bottom: 3px;
+      }
+      input {
+        border: 1px solid @input-border;
+      }
+      .input-date-value {
+        font-size: 0.9em;
+        margin: 5px 0;
+      }
+      .btn-schedule {
+        width: 100%;
+      }
+    }
 
     .send-later-option {
       cursor: default;
+      width: 100%;
+      padding: 1px 10px;
+
+      .item-date-value {
+        display: none;
+        float: right;
+        font-size: 0.9em;
+      }
+      &:hover {
+        background-color: @background-secondary;
+        .item-date-value {
+          display: inline-block;
+        }
+      }
     }
   }
 }

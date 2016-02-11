@@ -429,6 +429,6 @@ You can review and revoke Offline Access for plugins at any time from Preference
       method: "DELETE",
       accountId: accountId,
       path: "/auth/plugin?client_id=#{pluginId}"
-    });
+    })
 
 module.exports = new NylasAPI()

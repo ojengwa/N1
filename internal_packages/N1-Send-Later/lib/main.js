@@ -3,9 +3,9 @@ import {ComponentRegistry} from 'nylas-exports'
 import SendLaterButton from './send-later-button'
 import SendLaterStore from './send-later-store'
 
-export function activate(localState, cloudStorage) {
+export function activate() {
   ComponentRegistry.register(SendLaterButton, {role: 'Composer:ActionButton'})
-  this.sendLaterStore = new SendLaterStore(cloudStorage)
+  this.sendLaterStore = new SendLaterStore()
 }
 
 export function deactivate() {
