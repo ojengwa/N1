@@ -21,20 +21,16 @@ function afterDraftSend({message}) {
   if(!NylasEnv.isMainWindow()) return;
 
   //grab message metadata, if any
-  console.log("grab message metadata, if any",message)
   const metadata = message.metadataForPluginId(PLUGIN_ID);
 
   //get the uid from the metadata, if present
-console.log("get the uid from the metadata, if present",metadata);
   if(metadata){
     let uid = metadata.uid;
 
     //set metadata against the message
-console.log("set metadata against the message");
     Actions.setMetadata(message, PLUGIN_ID, {open_count: 0, open_data: []});
 
     //post the uid and message id pair to the plugin server
-console.log("post the uid and message id pair to the plugin server");
     let data = {uid: uid, message_id:message.id, thread_id:1};
     let serverUrl = `http://${PLUGIN_URL}/register-message`;
     return post({
@@ -56,29 +52,22 @@ class OpenTrackingComposerExtension extends ComposerExtension {
     const draft = session.draft();
 
     //grab message metadata, if any
-console.log("grab message metadata, if any",draft);
     let metadata = draft.metadataForPluginId(PLUGIN_ID);
     if(metadata) {
       //generate a UID
-      let uid = uuid.v4()+"";
-      uid = uid.replace("-","");
-console.log("generate a UID",metadata,uid);
+      let uid = uuid.v4().replace(/-/g,"");
 
       //insert a tracking pixel <img> into the message
       let serverUrl = `http://${PLUGIN_URL}/${draft.accountId}/${uid}`;
       let img = `<img width="0" height="0" style="border:0; width:0; height:0;" src="${serverUrl}">`;
       let draftBody = new DraftBody(draft);
       draftBody.unquoted = draftBody.unquoted+"<br>"+img;
-      console.log("unquoted:",draftBody.unquoted);
-      console.log(`insert a tracking pixel ${img} into the message, new body is:`,draftBody.body);
 
       //save the draft
-console.log("save the draft");
       session.changes.add({body: draftBody.body});
       session.changes.commit();
 
       //save the uid to draft metadata
-console.log("save the uid to draft metadata");
       metadata.uid = uid;
       Actions.setMetadata(draft, PLUGIN_ID, metadata);
     }

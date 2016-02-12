@@ -62,7 +62,6 @@ export default class OpenTrackingButton extends React.Component {
       .then(session => session.draft())
       .then(draft => {
         return NylasAPI.authPlugin(PLUGIN_ID, plugin.title, draft.accountId).then(() => {
-          console.log("setting metadata!", draft)
           Actions.setMetadata(draft, PLUGIN_ID, currentlyEnabled ? null : {tracked:true});
         });
       });
