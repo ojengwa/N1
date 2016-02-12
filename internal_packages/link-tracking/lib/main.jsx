@@ -1,4 +1,4 @@
-import {ComponentRegistry, DatabaseStore, Thread, ExtensionRegistry, ComposerExtension, React, Actions} from 'nylas-exports';
+import {ComponentRegistry, DatabaseStore, Thread, ExtensionRegistry, ComposerExtension, React, Actions, QuotedHTMLTransformer} from 'nylas-exports';
 import LinkTrackingButton from './link-tracking-button';
 import LinkTrackingIcon from './link-tracking-message-icon';
 import plugin from '../package.json'
@@ -7,26 +7,27 @@ import request from 'request';
 import uuid from 'node-uuid';
 const post = Promise.promisify(request.post, {multiArgs: true});
 const PLUGIN_ID = plugin.appId;
+const PLUGIN_URL="n1-open-tracking.herokuapp.com";
 
 
 class DraftBody {
   constructor(draft) {this._body = draft.body}
-  get unquoted() {QuotedHTMLTransformer.removeQuotedHTML(this._body);}
-  set unquoted(text) {this._body = QuotedHTMLTransformer.appendQuotedHTML(fn(text), body);}
+  get unquoted() {return QuotedHTMLTransformer.removeQuotedHTML(this._body);}
+  set unquoted(text) {this._body = QuotedHTMLTransformer.appendQuotedHTML(text, this._body);}
   get body() {return this._body}
   set body(body) {this._body = body}
 }
 
-function afterDraftSend({draft}) {
+function afterDraftSend({message}) {
   //grab message metadata, if any
-  const metadata = draft.metadataForPluginId(PLUGIN_ID);
+  const metadata = message.metadataForPluginId(PLUGIN_ID);
 
   //get the uid from the metadata, if present
   if(metadata){
     let uid = metadata.uid;
 
     //set metadata against thread for fast lookup
-    DatabaseStore.find(Thread, draft.threadId).then((thread) => {
+    DatabaseStore.find(Thread, message.threadId).then((thread) => {
       Actions.setMetadata(thread, PLUGIN_ID, {tracked:true});
     });
 
@@ -35,10 +36,10 @@ function afterDraftSend({draft}) {
       link.click_count = 0;
       link.click_data = [];
     }
-    Actions.setMetadata(draft, PLUGIN_ID, metadata);
+    Actions.setMetadata(message, PLUGIN_ID, metadata);
 
     //post the uid and message id pair to the plugin server
-    let data = {uid: uid, message_id:draft.id};
+    let data = {uid: uid, message_id:message.id};
     let serverUrl = `http://${PLUGIN_URL}/register-message`;
     return post({
       url: serverUrl,
@@ -56,7 +57,7 @@ function afterDraftSend({draft}) {
 }
 
 class LinkTrackingComposerExtension extends ComposerExtension {
-  finalizeSessionBeforeSending({session}) {
+  static finalizeSessionBeforeSending({session}) {
     const draft = session.draft();
 
     //grab message metadata, if any
@@ -73,7 +74,7 @@ class LinkTrackingComposerExtension extends ComposerExtension {
         //generate a UID
         let uid = uuid.v4();
         let encoded = encodeURIComponent(url);
-        let redirectUrl = `http://${PLUGIN_URL}/${accountId}/${message_uid}/${uid}?redirect=${encoded}"`;
+        let redirectUrl = `http://${PLUGIN_URL}/${draft.accountId}/${message_uid}/${uid}?redirect=${encoded}"`;
         links[uid] = {url:url};
         return prefix+redirectUrl+suffix;
       });

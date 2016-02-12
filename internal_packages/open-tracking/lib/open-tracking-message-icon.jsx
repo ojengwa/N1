@@ -24,10 +24,10 @@ export default class OpenTrackingIcon extends React.Component {
   }
 
   _renderIcon = () => {
-    openedIcon = <RetinaImg url="nylas://open-tracking/assets/envelope-open-icon@2x.png"
-                            mode={RetinaImg.Mode.ContentIsMask} />;
-    unopenedIcon = <RetinaImg url="nylas://open-tracking/assets/envelope-closed-icon@2x.png"
-                              mode={RetinaImg.Mode.ContentIsMask} />;
+    openedIcon = "◌";/*<RetinaImg url="nylas://open-tracking/assets/envelope-open-icon@2x.png"
+                            mode={RetinaImg.Mode.ContentIsMask} />;*/
+    unopenedIcon = "●";/*<RetinaImg url="nylas://open-tracking/assets/envelope-closed-icon@2x.png"
+                              mode={RetinaImg.Mode.ContentIsMask} />;*/
     //"●" : "◌"
     return this.state.opened==null ? "" : (this.state.opened ? openedIcon : unopenedIcon);
   };
