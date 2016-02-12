@@ -4,10 +4,8 @@ import React, {Component, PropTypes} from 'react'
 import {DateUtils} from 'nylas-exports'
 import {Popover} from 'nylas-component-kit'
 import SendLaterActions from './send-later-actions'
+import {DATE_FORMAT_SHORT, DATE_FORMAT_LONG} from './send-later-constants'
 
-
-const DATE_FORMAT_LONG = 'ddd, MMM D, YYYY h:mmA'
-const DATE_FORMAT_SHORT = 'MMM D h:mmA'
 
 const SendLaterOptions = {
   'In 1 hour': DateUtils.in1Hour,
@@ -19,8 +17,8 @@ const SendLaterOptions = {
   'Next Week': DateUtils.nextWeek,
 }
 
-class SendLaterButton extends Component {
-  static displayName = 'SendLaterButton';
+class SendLaterPopover extends Component {
+  static displayName = 'SendLaterPopover';
 
   static propTypes = {
     draftClientId: PropTypes.string,
@@ -113,4 +111,4 @@ class SendLaterButton extends Component {
 
 }
 
-export default SendLaterButton
+export default SendLaterPopover

@@ -1,10 +1,8 @@
 /** @babel */
 import {NylasAPI, Actions, Message, DatabaseStore} from 'nylas-exports'
 import SendLaterActions from './send-later-actions'
+import {PLUGIN_ID, PLUGIN_NAME} from './send-later-constants'
 
-
-const PLUGIN_ID = "aqx344zhdh6jyabqokejknkvr"
-const PLUGIN_NAME = "Send Later"
 
 class SendLaterStore {
 
