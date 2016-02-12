@@ -37,6 +37,7 @@ class SendLaterButton extends Component {
     const utcDate = momentDate.utc()
     const formatted = DateUtils.format(utcDate)
     SendLaterActions.sendLater(this.props.draftClientId, formatted)
+    this.setState({sendDate: null})
     this.refs.popover.close()
   };
 
