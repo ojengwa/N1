@@ -8,14 +8,17 @@ export default class OpenTrackingIcon extends React.Component {
 
   constructor(props) {
     super(props);
-    let metadata = props.thread.metadataForPluginId(plugin.appId);
-    this.state = {opened: metadata ? metadata.opened : null};
+    this.state = this._getStateFromThread(props.thread)
   }
 
   componentWillReceiveProps(newProps) {
-    let metadata = newProps.thread.metadataForPluginId(plugin.appId);
-    this.setState({opened: metadata ? metadata.opened : null});
+    this.setState(this._getStateFromThread(newProps.thread));
   }
+
+  _getStateFromThread(thread){
+    let metadatas = thread.metadata.map(m=>m.metadataForPluginId(plugin.appId)).filter(m=>m);
+    return {opened: metadatas.length ? metadatas.every(m=>m.open_count>0) : null};
+  };
 
   render() {
     return <div className="open-tracking-icon">
@@ -24,10 +27,15 @@ export default class OpenTrackingIcon extends React.Component {
   }
 
   _renderIcon = () => {
-    openedIcon = "◌";/*<RetinaImg url="nylas://open-tracking/assets/envelope-open-icon@2x.png"
-                            mode={RetinaImg.Mode.ContentIsMask} />;*/
-    unopenedIcon = "●";/*<RetinaImg url="nylas://open-tracking/assets/envelope-closed-icon@2x.png"
-                              mode={RetinaImg.Mode.ContentIsMask} />;*/
+    openedIcon = <RetinaImg
+        url="nylas://open-tracking/assets/envelope-open-icon@2x.png"
+        mode={RetinaImg.Mode.ContentIsMask}
+      />;
+    unopenedIcon = <RetinaImg
+        className="unopened"
+        url="nylas://open-tracking/assets/envelope-closed-icon@2x.png"
+        mode={RetinaImg.Mode.ContentIsMask}
+      />;
     //"●" : "◌"
     return this.state.opened==null ? "" : (this.state.opened ? openedIcon : unopenedIcon);
   };

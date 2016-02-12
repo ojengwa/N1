@@ -31,6 +31,7 @@ export default class OpenTrackingButton extends React.Component {
   }
 
   setStateFromDraft =(draft)=> {
+    if(!draft) return;
     let metadata = draft.metadataForPluginId(PLUGIN_ID);
     this.setState({enabled: metadata ? metadata.tracked : false});
   };

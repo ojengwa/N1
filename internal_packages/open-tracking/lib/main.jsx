@@ -17,6 +17,9 @@ class DraftBody {
 }
 
 function afterDraftSend({message}) {
+  //only run this handler in the main window
+  if(!NylasEnv.isMainWindow()) return;
+
   //grab message metadata, if any
   console.log("grab message metadata, if any",message)
   const metadata = message.metadataForPluginId(PLUGIN_ID);
@@ -26,20 +29,13 @@ console.log("get the uid from the metadata, if present",metadata);
   if(metadata){
     let uid = metadata.uid;
 
-    //set metadata against thread for fast lookup
-console.log("set metadata against thread for fast lookup");
-    DatabaseStore.find(Thread, message.threadId).then((thread) => {
-      Actions.setMetadata(thread, PLUGIN_ID, {opened:false});
-      console.log("thread",thread)
-    });
-
     //set metadata against the message
 console.log("set metadata against the message");
     Actions.setMetadata(message, PLUGIN_ID, {open_count: 0, open_data: []});
 
     //post the uid and message id pair to the plugin server
 console.log("post the uid and message id pair to the plugin server");
-    let data = {uid: uid, message_id:message.id, thread_id:message.threadId};
+    let data = {uid: uid, message_id:message.id, thread_id:1};
     let serverUrl = `http://${PLUGIN_URL}/register-message`;
     return post({
       url: serverUrl,
