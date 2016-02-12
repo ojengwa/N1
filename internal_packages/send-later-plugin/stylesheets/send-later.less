@@ -15,7 +15,7 @@
       align-self: center;
     }
 
-    .send-later-input {
+    .send-later-section {
       padding: 0 10px;
       display: flex;
       flex-direction: column;
@@ -30,7 +30,7 @@
         font-size: 0.9em;
         margin: 5px 0;
       }
-      .btn-schedule {
+      .btn-send-later {
         width: 100%;
       }
     }
@@ -56,6 +56,15 @@
 }
 
 .send-later-state {
-  font-size: 0.9em;
-  opacity: 0.62;
+  display: flex;
+  align-items: center;
+
+  em {
+    font-size: 0.9em;
+    opacity: 0.62;
+  }
+  img {
+    width: 38px;
+    margin-left: 15px;
+  }
 }

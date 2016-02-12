@@ -4,7 +4,8 @@ import React, {Component, PropTypes} from 'react'
 import {DateUtils} from 'nylas-exports'
 import {Popover} from 'nylas-component-kit'
 import SendLaterActions from './send-later-actions'
-import {DATE_FORMAT_SHORT, DATE_FORMAT_LONG} from './send-later-constants'
+import SendLaterStore from './send-later-store'
+import {DATE_FORMAT_SHORT, DATE_FORMAT_LONG, PLUGIN_ID} from './send-later-constants'
 
 
 const SendLaterOptions = {
@@ -24,28 +25,66 @@ class SendLaterPopover extends Component {
     draftClientId: PropTypes.string,
   };
 
-  constructor() {
-    super()
+  constructor(props) {
+    super(props)
+    const isScheduled = this.isScheduled()
     this.state = {
-      sendDate: null,
+      inputSendDate: null,
+      isScheduled,
+      buttonLabel: this.getButtonLabel(isScheduled),
     }
+  }
+
+  componentDidMount() {
+    this.unsubscribe = SendLaterStore.listen(this.onScheduledMessagesChanged)
+  }
+
+  componentWillUnmount() {
+    this.unsubscribe()
   }
 
   onSendLater = (momentDate)=> {
     const utcDate = momentDate.utc()
     const formatted = DateUtils.format(utcDate)
     SendLaterActions.sendLater(this.props.draftClientId, formatted)
-    this.setState({sendDate: null})
+
+    this.setState({buttonLabel: "Scheduling...", inputSendDate: null})
     this.refs.popover.close()
+  };
+
+  onCancelSendLater = ()=> {
+    SendLaterActions.cancelSendLater(this.props.draftClientId)
+    this.setState({inputSendDate: null})
+    this.refs.popover.close()
+  };
+
+  onScheduledMessagesChanged = ()=> {
+    const isScheduled = this.isScheduled()
+    const buttonLabel = this.getButtonLabel(isScheduled)
+    if (buttonLabel !== this.state.buttonLabel) {
+      this.setState({isScheduled, buttonLabel})
+    }
   };
 
   onInputChange = (event)=> {
     this.updateInputSendDateValue(event.target.value)
   };
 
+  getButtonLabel = (isScheduled)=> {
+    return isScheduled ? '✅  Scheduled' : 'Send Later';
+  };
+
+  isScheduled = ()=> {
+    const msg = SendLaterStore.getScheduledMessage(this.props.draftClientId)
+    if (msg && msg.metadataForPluginId(PLUGIN_ID).sendLaterDate) {
+      return true
+    }
+    return false
+  };
+
   updateInputSendDateValue = _.debounce((dateValue)=> {
-    const sendDate = DateUtils.fromString(dateValue)
-    this.setState({sendDate})
+    const inputSendDate = DateUtils.fromString(dateValue)
+    this.setState({inputSendDate})
   }, 250);
 
   renderItems() {
@@ -64,14 +103,13 @@ class SendLaterPopover extends Component {
     })
   }
 
-  renderInput() {
-    const {sendDate} = this.state
+  renderInput(inputSendDate) {
     let dateString;
-    if (sendDate) {
-      dateString = DateUtils.format(sendDate, DATE_FORMAT_LONG)
+    if (inputSendDate) {
+      dateString = DateUtils.format(inputSendDate, DATE_FORMAT_LONG)
     }
     return (
-      <div className="send-later-input">
+      <div className="send-later-section">
         <label>At a specific time</label>
         <input
           type="text"
@@ -82,16 +120,17 @@ class SendLaterPopover extends Component {
           void 0}
         {dateString ?
           <button
-            className="btn btn-schedule"
-            onMouseDown={this.onSendLater.bind(this, sendDate)}>Schedule Email</button> :
+            className="btn btn-send-later"
+            onMouseDown={this.onSendLater.bind(this, inputSendDate)}>Schedule Email</button> :
           void 0}
       </div>
     )
   }
 
   render() {
+    const {isScheduled, buttonLabel, inputSendDate} = this.state
     const button = (
-      <button className="btn btn-primary send-later-button">Send Later</button>
+      <button className="btn btn-primary send-later-button">{buttonLabel}</button>
     )
 
     return (
@@ -103,7 +142,17 @@ class SendLaterPopover extends Component {
         <div className="send-later-container">
           {this.renderItems()}
           <div className="divider" />
-          {this.renderInput()}
+          {this.renderInput(inputSendDate)}
+          {isScheduled ?
+            <div className="divider" />
+          : void 0}
+          {isScheduled ?
+            <div className="send-later-section">
+              <button className="btn btn-send-later" onMouseDown={this.onCancelSendLater}>
+                Cancel Send Later
+              </button>
+            </div>
+          : void 0}
         </div>
       </Popover>
     );
