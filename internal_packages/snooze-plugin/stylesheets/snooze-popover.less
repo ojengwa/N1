@@ -1,6 +1,12 @@
 @import "ui-variables";
+@snooze-img: "../internal_packages/snooze-plugin/assets/ic-toolbar-native-snooze@2x.png";
 
-.SnoozePopover {
+.thread-list .list-item .list-column-HoverActions .action.action-snooze {
+  background: url(@snooze-img) center no-repeat, @background-gradient;
+  background-size: 50%;
+}
+
+.snooze-popover {
   .snooze-container {
     display: flex;
     flex-direction: column;

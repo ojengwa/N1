@@ -1,9 +1,26 @@
 /** @babel */
 import React, {Component, PropTypes} from 'react';
+import {RetinaImg} from 'nylas-component-kit';
 
-export function BulkActionComponent(ComponentClass, name = '') {
+
+const toolbarButton = (
+  <button
+    className="btn btn-toolbar btn-snooze"
+    style={{order: -107}}
+    title="Snooze">
+    <RetinaImg
+      url="nylas://snooze-plugin/assets/ic-toolbar-native-snooze@2x.png"
+      mode={RetinaImg.Mode.ContentIsMask} />
+  </button>
+)
+
+const quickActionButton = (
+  <div title="Snooze" className="btn action action-snooze" />
+)
+
+export function BulkThreadComponent(ComponentClass, name = '') {
   return class extends Component {
-    static displayName = `BulkAction-${Component.name}-${name}`;
+    static displayName = `BulkThread-${Component.name}-${name}`;
 
     static propTypes = {
       selection: PropTypes.object,
@@ -11,12 +28,12 @@ export function BulkActionComponent(ComponentClass, name = '') {
     };
 
     render() {
-      return <ComponentClass threads={this.props.items} />;
+      return <ComponentClass buttonComponent={toolbarButton} threads={this.props.items} />;
     }
   };
 }
 
-export function SingleActionComponent(ComponentClass, name = '') {
+export function ToolbarComponent(ComponentClass, name = '') {
   return class extends Component {
     static displayName = `SingleAction-${Component.name}-${name}`;
 
@@ -25,7 +42,21 @@ export function SingleActionComponent(ComponentClass, name = '') {
     };
 
     render() {
-      return <ComponentClass threads={[this.props.thread]} />;
+      return <ComponentClass buttonComponent={toolbarButton} threads={[this.props.thread]} />;
+    }
+  };
+}
+
+export function QuickActionComponent(ComponentClass, name = '') {
+  return class extends Component {
+    static displayName = `QuickAction-${Component.name}-${name}`;
+
+    static propTypes = {
+      thread: PropTypes.object,
+    };
+
+    render() {
+      return <ComponentClass buttonComponent={quickActionButton} threads={[this.props.thread]} />;
     }
   };
 }

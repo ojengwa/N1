@@ -2,8 +2,10 @@
 import _ from 'underscore';
 import {
   Actions,
+  Thread,
   Category,
   CategoryStore,
+  DatabaseStore,
   AccountStore,
   SyncbackCategoryTask,
   TaskQueueStatusStore,
@@ -66,15 +68,19 @@ export function getSnoozeCategoriesByAccount(accounts = AccountStore.accounts())
 export function moveThreads(threads, categoriesByAccountId, {snooze} = {}) {
   const inbox = CategoryStore.getInboxCategory
   const snoozeCat = (accId)=> categoriesByAccountId[accId]
-  const taskArgs = {
+  const tasks = TaskFactory.tasksForApplyingCategories({
     threads,
     categoriesToRemove: snooze ? inbox : snoozeCat,
     categoryToAdd: snooze ? snoozeCat : inbox,
-  }
-  const tasks = TaskFactory.tasksForApplyingCategories(taskArgs)
+  })
+
   Actions.queueTasks(tasks)
   const promises = tasks.map(task => TaskQueueStatusStore.waitForPerformRemote(task))
-  return Promise.all(promises).then(()=> Promise.resolve(threads))
+  // Resolve the updated threads
+  return (
+    Promise.all(promises)
+    .then(()=> DatabaseStore.modelify(Thread, _.pluck(threads, 'id')))
+  )
 }
 
 export function moveThreadsToSnooze(threads) {

@@ -2,7 +2,7 @@
 import _ from 'underscore';
 import _str from 'underscore.string';
 import React, {Component, PropTypes} from 'react';
-import {Popover, RetinaImg} from 'nylas-component-kit';
+import {Popover} from 'nylas-component-kit';
 import SnoozeActions from '../snooze-actions'
 import * as SnoozeDelays from '../utils/snooze-delays'
 
@@ -12,6 +12,7 @@ class SnoozePopover extends Component {
 
   static propTypes = {
     threads: PropTypes.array.isRequired,
+    buttonComponent: PropTypes.object.isRequired,
   };
 
   onSnooze(snoozeDate) {
@@ -31,25 +32,16 @@ class SnoozePopover extends Component {
   };
 
   render() {
-    const button = (
-      <button
-        className="btn btn-toolbar btn-snooze"
-        style={{order: -107}}
-        title="Snooze">
-        <RetinaImg
-          url="nylas://N1-Snooze/assets/toolbar-snooze@2x.png"
-          mode={RetinaImg.Mode.ContentIsMask} />
-      </button>
-    );
+    const {buttonComponent} = this.props
     const snoozeDelays = _.values(SnoozeDelays);
     const items = snoozeDelays.map(this.renderItem)
 
     return (
       <Popover
         style={{order: -103}}
-        className="SnoozePopover"
+        className="snooze-popover"
         direction="down-align-left"
-        buttonComponent={button}>
+        buttonComponent={buttonComponent}>
         <div className="snooze-container">
           {items}
         </div>
