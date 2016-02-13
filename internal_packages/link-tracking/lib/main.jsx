@@ -1,24 +1,26 @@
 import {ComponentRegistry, DatabaseStore, Thread, ExtensionRegistry, ComposerExtension, React, Actions, QuotedHTMLTransformer} from 'nylas-exports';
 import LinkTrackingButton from './link-tracking-button';
 import LinkTrackingIcon from './link-tracking-message-icon';
+import LinkTrackingPanel from './link-tracking-panel';
 import plugin from '../package.json'
 
 import request from 'request';
 import uuid from 'node-uuid';
 const post = Promise.promisify(request.post, {multiArgs: true});
 const PLUGIN_ID = plugin.appId;
-const PLUGIN_URL="n1-open-tracking.herokuapp.com";
-
+const PLUGIN_URL="n1-link-tracking.herokuapp.com";
 
 class DraftBody {
   constructor(draft) {this._body = draft.body}
   get unquoted() {return QuotedHTMLTransformer.removeQuotedHTML(this._body);}
   set unquoted(text) {this._body = QuotedHTMLTransformer.appendQuotedHTML(text, this._body);}
   get body() {return this._body}
-  set body(body) {this._body = body}
 }
 
 function afterDraftSend({message}) {
+  //only run this handler in the main window
+  if(!NylasEnv.isMainWindow()) return;
+
   //grab message metadata, if any
   const metadata = message.metadataForPluginId(PLUGIN_ID);
 
@@ -26,15 +28,10 @@ function afterDraftSend({message}) {
   if(metadata){
     let uid = metadata.uid;
 
-    //set metadata against thread for fast lookup
-    DatabaseStore.find(Thread, message.threadId).then((thread) => {
-      Actions.setMetadata(thread, PLUGIN_ID, {tracked:true});
-    });
-
     //update metadata against the message
-    for(const link of metadata.links) {
-      link.click_count = 0;
-      link.click_data = [];
+    for(const linkId of Object.keys(metadata.links)) {
+      metadata.links[linkId].click_count = 0;
+      metadata.links[linkId].click_data = [];
     }
     Actions.setMetadata(message, PLUGIN_ID, metadata);
 
@@ -49,8 +46,7 @@ function afterDraftSend({message}) {
         throw new Error();
       return args[1];
     }).catch(error => {
-      const dialog = require('remote').require('dialog');
-      dialog.showErrorBox("There was a problem contacting the Link Tracking server! This message will not have link tracking");
+      NylasEnv.showErrorDialog("There was a problem contacting the Link Tracking server! This message will not have link tracking");
       Promise.reject(error);
     });
   }
@@ -62,19 +58,17 @@ class LinkTrackingComposerExtension extends ComposerExtension {
 
     //grab message metadata, if any
     const metadata = draft.metadataForPluginId(PLUGIN_ID);
-
-    //only take action if there's metadata
     if(metadata) {
       let draftBody = new DraftBody(draft);
       let links = {};
-      let message_uid = uuid.v4();
+      let message_uid = uuid.v4().replace(/-/g,"");
 
       //loop through all <a href> elements, replace with redirect links and save mappings
       draftBody.unquoted = draftBody.unquoted.replace(/(<a .*?href=")(.*?)(".*?>)/g, (match, prefix, url, suffix, offset) => {
         //generate a UID
-        let uid = uuid.v4();
+        let uid = uuid.v4().replace(/-/g,"");
         let encoded = encodeURIComponent(url);
-        let redirectUrl = `http://${PLUGIN_URL}/${draft.accountId}/${message_uid}/${uid}?redirect=${encoded}"`;
+        let redirectUrl = `http://${PLUGIN_URL}/${draft.accountId}/${message_uid}/${uid}?redirect=${encoded}`;
         links[uid] = {url:url};
         return prefix+redirectUrl+suffix;
       });
@@ -94,6 +88,7 @@ class LinkTrackingComposerExtension extends ComposerExtension {
 export function activate() {
   ComponentRegistry.register(LinkTrackingButton, {role: 'Composer:ActionButton'});
   ComponentRegistry.register(LinkTrackingIcon, {role: 'ThreadListIcon'});
+  ComponentRegistry.register(LinkTrackingPanel, {role: 'message:BodyHeader'});
   ExtensionRegistry.Composer.register(LinkTrackingComposerExtension);
   this._unlistenSendDraftSuccess = Actions.sendDraftSuccess.listen(afterDraftSend);
 }
@@ -103,6 +98,7 @@ export function serialize() {}
 export function deactivate() {
   ComponentRegistry.unregister(LinkTrackingButton);
   ComponentRegistry.unregister(LinkTrackingIcon);
+  ComponentRegistry.unregister(LinkTrackingPanel);
   ExtensionRegistry.Composer.unregister(LinkTrackingComposerExtension);
   this._unlistenSendDraftSuccess()
 }

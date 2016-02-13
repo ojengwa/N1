@@ -54,9 +54,6 @@ export default class OpenTrackingButton extends React.Component {
   _onClick=()=> {
     let currentlyEnabled = this.state.enabled;
 
-    ////trigger an immediate change for better UI
-    //this.setState({enabled: !currentlyEnabled});
-
     //write metadata into the draft to indicate tracked state
     DraftStore.sessionForClientId(this.props.draftClientId)
       .then(session => session.draft())

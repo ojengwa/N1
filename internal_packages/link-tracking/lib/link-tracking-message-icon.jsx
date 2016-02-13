@@ -8,14 +8,22 @@ export default class LinkTrackingIcon extends React.Component {
 
   constructor(props) {
     super(props);
-    let metadata = props.thread.metadataForPluginId(plugin.appId);
-    this.state = {enabled: metadata ? metadata.tracked : false};
+    this.state = this._getStateFromThread(props.thread)
   }
 
   componentWillReceiveProps(newProps) {
-    let metadata = newProps.thread.metadataForPluginId(plugin.appId);
-    this.setState({enabled: metadata ? metadata.tracked : false});
+    this.setState(this._getStateFromThread(newProps.thread));
   }
+
+  _getStateFromThread(thread){
+    let metadatas = thread.metadata.map(m=>m.metadataForPluginId(plugin.appId)).filter(m=>m);
+    if(metadatas.length) {
+      const msgClickMax = (m) => Math.max(...Object.keys(m.links).map(id=>m.links[id].click_count||0));
+      return {clicks: Math.max(...metadatas.map(msgClickMax))};
+    }
+    else
+      return {clicks: null};
+  };
 
   render() {
     return <div className="link-tracking-icon">
@@ -24,8 +32,16 @@ export default class LinkTrackingIcon extends React.Component {
   }
 
   _renderIcon = () => {
-    linkedIcon = <RetinaImg url="nylas://link-tracking/assets/linktracking-icon@2x.png"
-                            mode={RetinaImg.Mode.ContentIsMask} />;
-    return this.state.tracked==null ? "" : linkedIcon;
+    return this.state.clicks==null ? "" : this._getIcon(this.state.clicks);
   };
+
+  _getIcon(clicks) {
+    return <span>
+      <RetinaImg
+        className={clicks>0 ? "clicked" : ""}
+        url="nylas://link-tracking/assets/linktracking-icon@2x.png"
+        mode={RetinaImg.Mode.ContentIsMask} />
+      <span className="link-click-count">{clicks>0 ? clicks : ""}</span>
+    </span>
+  }
 }
